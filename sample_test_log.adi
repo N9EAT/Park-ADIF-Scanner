@@ -1,0 +1,12 @@
+Sample test log for the ADIF County Scanner
+<adif_ver:5>3.1.4 <programid:14>County Scanner
+<eoh>
+<call:5>K1ABC <qso_date:8>20260110 <time_on:4>1432 <band:5>1.25m <mode:3>SSB <pota_ref:7>US-0001 <eor>
+<call:5>W8XYZ <qso_date:8>20260111 <time_on:4>0155 <band:5>1.25m <mode:3>FT8 <sig:4>WWFF <sig_info:8>KFF-0004 <eor>
+<call:6>N7SUMM <qso_date:8>20260112 <time_on:4>1800 <band:5>1.25m <mode:2>CW <sota_ref:10>W7I/BL-001 <eor>
+<call:5>K9CTY <qso_date:8>20260113 <time_on:4>2210 <band:5>1.25m <mode:2>FM <state:2>IL <cnty:7>IL,Cook <eor>
+<call:6>W9DUPG <qso_date:8>20260113 <time_on:4>2225 <band:5>1.25m <mode:3>SSB <cnty:9>IL,DuPage <eor>
+<call:5>KL7AK <qso_date:8>20260114 <time_on:4>0300 <band:5>1.25m <mode:3>FT4 <pota_ref:7>US-0022 <eor>
+<call:5>N5TEX <qso_date:8>20260115 <time_on:4>1500 <band:3>20m <mode:3>SSB <pota_ref:7>US-0006 <eor>
+<call:6>WB2GAP <qso_date:8>20260116 <time_on:4>1620 <band:5>1.25m <mode:3>SSB <pota_ref:7>US-0027 <sig:4>POTA <sig_info:7>US-0027 <eor>
+<call:5>K0BAD <qso_date:8>20260117 <time_on:4>1700 <band:5>1.25m <mode:3>SSB <pota_ref:8>US-99999 <eor>

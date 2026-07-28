@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>County Scanner — ADIF Award Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#101316; --panel:#191d21; --panel2:#20252b; --bezel:#0b0d0f;
+  --line:#2d343c; --line2:#3a424b;
+  --ink:#d9dee3; --dim:#8b949d; --faint:#5c656e;
+  --amber:#ffb257; --amber-dim:#8a5f2c;
+  --green:#6fd6a3; --red:#ff7a6b; --blue:#6db3e8;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --disp:'Chakra Petch',var(--mono);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scrollbar-color:var(--line2) var(--bg)}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--mono);min-height:100vh;
+  background-image:radial-gradient(ellipse 80% 50% at 50% -10%, #1a2027 0%, transparent 60%)}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select{font:inherit;color:inherit}
+
+.wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:20px}
+header h1{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.06em;text-transform:uppercase}
+header h1 .amp{color:var(--amber)}
+header .sub{color:var(--dim);font-size:12px;letter-spacing:.02em}
+.pwrdot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);display:inline-block;margin-right:8px;vertical-align:1px}
+
+/* ---------- layout ---------- */
+.cols{display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start}
+@media(max-width:900px){.cols{grid-template-columns:1fr}}
+
+/* ---------- setup panels ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:14px;overflow:hidden}
+.panel-h{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1e2329,#191d21)}
+.panel-h .tag{font-family:var(--disp);font-size:10px;font-weight:600;letter-spacing:.14em;color:var(--faint);border:1px solid var(--line2);border-radius:3px;padding:2px 6px}
+.panel-h .ttl{font-family:var(--disp);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.panel-h .st{margin-left:auto;font-size:11px;color:var(--faint)}
+.panel-h .st.ok{color:var(--green)}
+.panel-b{padding:12px}
+
+.filebtn{display:block;width:100%;border:1px dashed var(--line2);border-radius:6px;padding:10px;text-align:center;color:var(--dim);font-size:12px;transition:.15s}
+.filebtn:hover{border-color:var(--amber);color:var(--amber)}
+.filebtn input{display:none}
+.filemeta{margin-top:8px;font-size:11px;color:var(--dim);word-break:break-all}
+.filemeta b{color:var(--ink);font-weight:500}
+.hint{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.45}
+
+.radio-row,.chk-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:12px;color:var(--ink);cursor:pointer}
+.radio-row input,.chk-row input{accent-color:var(--amber);margin-top:2px;cursor:pointer}
+.radio-row .d,.chk-row .d{color:var(--faint);font-size:11px;display:block}
+
+/* segmented mode control */
+.seg{display:flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg button{flex:1;padding:7px 4px;font-size:11px;letter-spacing:.06em;color:var(--dim);font-family:var(--disp);font-weight:600;border-right:1px solid var(--line2);transition:.12s}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--amber);color:#1a1206}
+.seg button:not(.on):hover{color:var(--ink);background:#242a31}
+label.lbl{display:block;font-size:10px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase;font-family:var(--disp);font-weight:600;margin:12px 0 6px}
+label.lbl:first-child{margin-top:0}
+select.sel{width:100%;background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:7px 8px;font-size:12px}
+
+/* ---------- LCD display (signature) ---------- */
+.lcd{background:var(--bezel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.7), inset 0 0 40px rgba(255,178,87,.03);
+  display:grid;grid-template-columns:repeat(4,1fr);gap:10px;position:relative;overflow:hidden}
+.lcd::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 1px, transparent 1px 3px)}
+.lcd .cell{min-width:0}
+.lcd .v{font-family:var(--disp);font-weight:700;font-size:clamp(20px,3.4vw,34px);letter-spacing:.05em;color:var(--amber);
+  text-shadow:0 0 12px rgba(255,178,87,.45);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lcd .v.g{color:var(--green);text-shadow:0 0 12px rgba(111,214,163,.4)}
+.lcd .v.r{color:var(--red);text-shadow:0 0 12px rgba(255,122,107,.4)}
+.lcd .k{font-family:var(--disp);font-size:9px;font-weight:600;letter-spacing:.18em;color:var(--amber-dim);text-transform:uppercase;margin-top:2px}
+.lcd .off{color:#33383e;text-shadow:none}
+@media(max-width:560px){.lcd{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- results ---------- */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:0;flex-wrap:wrap}
+.tabs button{font-family:var(--disp);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:9px 14px;color:var(--dim);border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;position:relative;top:1px}
+.tabs button.on{color:var(--amber);background:var(--panel);border-color:var(--line)}
+.tabs button .n{color:var(--faint);margin-left:5px;font-family:var(--mono);font-weight:500}
+.tabs button.on .n{color:var(--amber-dim)}
+.tabbody{background:var(--panel);border:1px solid var(--line);border-top:none;border-radius:0 0 8px 8px;padding:14px;min-height:200px}
+
+.hablock{border:1px solid var(--line2);border-radius:8px;padding:12px;background:var(--panel2)}
+.hahead{font-family:var(--disp);font-size:12px;letter-spacing:.06em;margin-bottom:10px}
+.hahead .d{color:var(--faint);font-family:var(--mono);letter-spacing:0;font-size:11px}
+.hagroup{border-top:1px solid var(--line);padding:10px 0 4px}
+.hagl{font-size:11px;color:var(--dim);margin-bottom:6px}
+.hagl b{color:var(--amber);font-weight:600}
+.hagl .d{color:var(--faint)}
+.hahelp{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.hahelp summary{font-size:11px;color:var(--dim);cursor:pointer}
+.hahelp summary:hover{color:var(--amber)}
+.hahelp ol{margin:8px 0 0 18px;font-size:12px;color:var(--ink);line-height:1.6}
+.hahelp a{color:var(--blue)}
+
+/* ---------- spot monitor ---------- */
+.spotdot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--faint);vertical-align:1px;margin-right:6px}
+.spotdot.live{background:var(--green);box-shadow:0 0 6px var(--green);animation:spotblink 1.6s infinite}
+@keyframes spotblink{50%{opacity:.3}}
+tr.spothit td{background:rgba(255,178,87,.08)}
+.spotstatus{font-size:11px;color:var(--faint)}
+.spotstatus b{color:var(--ink);font-weight:500}
+#n-spots.hot{color:var(--red)}
+
+.toolrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolrow .grow{flex:1}
+.btn{border:1px solid var(--line2);border-radius:6px;padding:6px 12px;font-size:11px;letter-spacing:.05em;color:var(--ink);
+  font-family:var(--disp);font-weight:600;transition:.12s;background:var(--panel2)}
+.btn:hover{border-color:var(--amber);color:var(--amber)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:disabled:hover{border-color:var(--line2);color:var(--ink)}
+input.search{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:6px 10px;font-size:12px;min-width:170px}
+input.search::placeholder{color:var(--faint)}
+
+.stateblock{border:1px solid var(--line);border-radius:6px;margin-bottom:8px;overflow:hidden}
+.stateblock summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel2);font-size:12px}
+.stateblock summary::-webkit-details-marker{display:none}
+.stateblock summary .ab{font-family:var(--disp);font-weight:700;color:var(--amber);width:26px}
+.stateblock summary .nm{color:var(--ink)}
+.stateblock summary .ct{margin-left:auto;color:var(--faint);font-size:11px}
+.stateblock summary .bar{flex:0 0 90px;height:4px;border-radius:2px;background:#2a3138;overflow:hidden}
+.stateblock summary .bar i{display:block;height:100%;background:var(--green)}
+.stateblock .cties{padding:10px 12px;display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid var(--line)}
+.cty{font-size:11px;padding:2px 8px;border-radius:3px;border:1px solid var(--line2);color:var(--dim)}
+.cty.w{border-color:rgba(111,214,163,.4);color:var(--green)}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-family:var(--disp);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
+  text-align:left;padding:6px 8px;border-bottom:1px solid var(--line2);position:sticky;top:0;background:var(--panel)}
+td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:#1d2228}
+.pill{display:inline-block;font-size:10px;font-family:var(--disp);font-weight:600;letter-spacing:.08em;padding:1px 7px;border-radius:3px;border:1px solid}
+.pill.POTA{color:var(--green);border-color:rgba(111,214,163,.45)}
+.pill.WWFF{color:#a3d66f;border-color:rgba(163,214,111,.45)}
+.pill.SOTA{color:var(--blue);border-color:rgba(109,179,232,.45)}
+.pill.CNTY{color:var(--amber);border-color:rgba(255,178,87,.45)}
+.warn{color:var(--amber)}
+.tablewrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.empty{color:var(--faint);text-align:center;padding:40px 10px;font-size:12px;line-height:1.7}
+.empty b{color:var(--dim);font-family:var(--disp);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+.note{font-size:11px;color:var(--faint);margin-top:10px;line-height:1.5}
+h3.sec{font-family:var(--disp);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:16px 0 8px}
+h3.sec:first-child{margin-top:0}
+footer{margin-top:28px;color:var(--faint);font-size:11px;line-height:1.6;border-top:1px solid var(--line);padding-top:12px}
+footer a{color:var(--dim)}
+a.call{color:var(--blue);text-decoration:none;border-bottom:1px dotted rgba(109,179,232,.5)}
+a.call:hover{border-bottom-style:solid}
+.disclaimer{border:1px solid rgba(255,178,87,.5);background:rgba(255,178,87,.07);color:var(--amber);
+  border-radius:6px;padding:8px 12px;font-size:12px;margin:0 0 10px}
+@media (prefers-reduced-motion:no-preference){
+  .lcd .v{transition:color .2s}
+}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1><span class="pwrdot"></span>County <span class="amp">Scanner</span></h1>
+  <span class="sub">ADIF log → POTA · WWFF · SOTA · county credit vs. USA-CA needed list</span>
+</header>
+
+<div class="cols">
+<!-- ============ LEFT: setup ============ -->
+<div>
+
+  <div class="panel">
+    <div class="panel-h"><span class="tag">01</span><span class="ttl">Log file</span><span class="st" id="st-adif">no file</span></div>
+    <div class="panel-b">
+      <label class="filebtn">Select ADIF log (.adi / .adif) — multiple OK
+        <input type="file" id="f-adif" accept=".adi,.adif,.txt" multiple>
+      </label>
+      <div class="filemeta" id="m-adif"></div>
+      <div class="filemeta" id="legacy-note"></div>
+      <div class="hint">Reads <b>POTA_REF</b>, <b>SOTA_REF</b>, <b>WWFF_REF</b>, and <b>SIG / SIG_INFO</b> (the ADIF fields WWFF logs typically use), plus <b>CNTY</b>, BAND, MODE.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h"><span class="tag">02</span><span class="ttl">Lookup tables</span><span class="st" id="st-lookups">0 / 2</span></div>
+    <div class="panel-b">
+      <label class="filebtn">Park lookup — TSV/CSV or KFF Reference List (.xls)
+        <input type="file" id="f-park" accept=".csv,.tsv,.txt,.xls,.xlsx">
+      </label>
+      <div class="filemeta" id="m-park"></div>
+      <label class="filebtn" style="margin-top:8px">SOTA lookup (SOTA-REF · county · state)
+        <input type="file" id="f-sota" accept=".csv,.txt">
+      </label>
+      <div class="filemeta" id="m-sota"></div>
+      <label class="filebtn" style="margin-top:8px">POTA hunter_parks export — optional
+        <input type="file" id="f-hunt" accept=".csv,.txt">
+      </label>
+      <div class="filemeta" id="m-hunt"></div>
+      <label class="filebtn" style="margin-top:8px">POTA all-references list — optional
+        <input type="file" id="f-potanames" accept=".csv,.txt">
+      </label>
+      <div class="filemeta" id="m-potanames"></div>
+      <div class="hint">UTF-16 or UTF-8, tab or comma delimited — detected automatically. When deployed to a website, files named <b>park_lookup.csv</b> / <b>sota_lookup.csv</b> in the same folder load on their own. The hunter_parks file is your "My Stats → Parks Hunted" CSV from pota.app — it feeds the Park matches tab. The all-references list (pota.app entity export, e.g. "United States of America (US).csv") has no counties but puts park names on worked references that aren't county-mapped yet, so you can research them. The all-references list is the country export from pota.app (no counties in it) — it names unmatched references so you can research their counties yourself. The KFF Reference List workbook (43&nbsp;MB) takes a minute to parse — the status will update when done.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h"><span class="tag">03</span><span class="ttl">Needed counties</span><span class="st ok" id="st-needed">USA-CA full</span></div>
+    <div class="panel-b">
+      <label class="radio-row"><input type="radio" name="needsrc" value="full" checked>
+        <span>Full USA-CA county list <span class="d">All 3,077 counties (start-from-zero, e.g. a new band)</span></span></label>
+      <label class="lbl" style="margin-top:6px">Award type for the full list</label>
+      <select class="sel" id="sel-fullaward">
+        <option value="PLAIN">USA-CA (any call)</option>
+        <option value="PREFIX:K">K Prefix Award</option>
+        <option value="PREFIX:W">W Prefix Award</option>
+        <option value="PREFIX:N">N Prefix Award</option>
+        <option value="PREFIX:A">A Prefix Award (wildcards: DX or call with X)</option>
+        <option value="ALLPREFIX">All Prefix Award (K+W+N+A per county)</option>
+        <option value="COMBO:1x2">Call Combo 1x2</option>
+        <option value="COMBO:2x1">Call Combo 2x1</option>
+        <option value="COMBO:1x3">Call Combo 1x3</option>
+        <option value="COMBO:2x2">Call Combo 2x2</option>
+        <option value="COMBO:2x3">Call Combo 2x3</option>
+      </select>
+      <div class="hint">Band and mode awards come from the award file name (e.g. "… 6 Meters Award"), which locks the Band/Mode filters below to that award's band or mode.</div>
+      <label class="filebtn" style="margin-top:10px">Add award file(s) (.txt) — multiple OK
+        <input type="file" id="f-need" accept=".txt" multiple>
+      </label>
+      <div class="hint">The award is read from the file name: <b>USA-CA</b>, <b>USA-PA</b> (All Prefix), <b>USA-PA - K/W/N/A</b>, <b>Call Combo - 1x2</b> (also 2x1, 1x3, 2x2, 2x3), or a band/mode award like <b>1.25 Meters Award</b>. Unrecognized names are rejected with an error. File contents use the CQ record-book format ("State:" then county list).</div>
+      <div id="award-list" style="margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h"><span class="tag">04</span><span class="ttl">Filters</span></div>
+    <div class="panel-b">
+      <label class="lbl">Mode</label>
+      <div class="seg" id="seg-mode">
+        <button data-v="ALL" class="on">All</button>
+        <button data-v="SSB">SSB/Ph</button>
+        <button data-v="CW">CW</button>
+        <button data-v="DIGITAL">Digital</button>
+      </div>
+      <label class="lbl">Band</label>
+      <select class="sel" id="sel-band"><option value="ALL">All bands</option></select>
+      <label class="lbl">Date range</label>
+      <div style="display:flex;gap:6px">
+        <input type="date" class="sel" id="date-from" title="From (inclusive)" style="flex:1;min-width:0">
+        <input type="date" class="sel" id="date-to" title="To (inclusive)" style="flex:1;min-width:0">
+      </div>
+      <div class="filemeta" id="award-lock-note"></div>
+      <div class="hint">For repeat awards (e.g. "7th Time"), set the start date to when you began chasing this round — the day after the previous award. QSOs without a date are excluded whenever a range is set.</div>
+      <label class="lbl">Credit sources</label>
+      <label class="chk-row"><input type="checkbox" id="src-POTA" checked><span>POTA references</span></label>
+      <label class="chk-row"><input type="checkbox" id="src-WWFF" checked><span>WWFF references</span></label>
+      <label class="chk-row"><input type="checkbox" id="src-SOTA" checked><span>SOTA references</span></label>
+      <label class="chk-row"><input type="checkbox" id="src-CNTY" checked><span>CNTY field in the log <span class="d">direct county from the QSO record</span></span></label>
+      <label class="lbl">Options</label>
+      <label class="chk-row"><input type="checkbox" id="opt-multi" checked><span>Credit multi-county parks for every listed county <span class="d">flagged ⚠ in results</span></span></label>
+      <label class="chk-row"><input type="checkbox" id="opt-my"><span>Include MY_* references <span class="d">your own activations (your side of the QSO)</span></span></label>
+      <label class="chk-row"><input type="checkbox" id="opt-crefs" checked><span>Scan comments for park/summit refs <span class="d">picks up e.g. "K-2121" or "W6/NC-123" left in COMMENT/NOTES — marked 💬</span></span></label>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ RIGHT: results ============ -->
+<div>
+  <div class="lcd" id="lcd">
+    <div class="cell"><div class="v off" id="lcd-qso">—</div><div class="k">QSOs scanned</div></div>
+    <div class="cell"><div class="v off" id="lcd-hits">—</div><div class="k">County credits</div></div>
+    <div class="cell"><div class="v g off" id="lcd-worked">—</div><div class="k">Counties worked</div></div>
+    <div class="cell"><div class="v r off" id="lcd-needed">—</div><div class="k">Still needed</div></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-t="needed" class="on">Needed<span class="n" id="n-needed"></span></button>
+    <button data-t="worked">Worked<span class="n" id="n-worked"></span></button>
+    <button data-t="qsos">QSO credits<span class="n" id="n-qsos"></span></button>
+    <button data-t="matches">Park matches<span class="n" id="n-matches"></span></button>
+    <button data-t="spots"><span class="spotdot" id="spot-tabdot"></span>Spots<span class="n" id="n-spots"></span></button>
+    <button data-t="issues">Issues<span class="n" id="n-issues"></span></button>
+  </div>
+  <div class="tabbody" id="tabbody"></div>
+
+  <footer>
+    Mode groups — SSB/Phone: SSB · USB · LSB · AM · FM · digital voice &nbsp;·&nbsp; CW: CW &nbsp;·&nbsp; Digital: everything else (FT8, FT4, RTTY, PSK…).
+    County names are matched after stripping punctuation and spacing, so "St. Clair" = "St Clair" and Alaska's "Third J.D. SC" = "Third J. D. S C".
+    Alaska borough/census-area names in logs are mapped to the four USA-CA judicial districts, and "Saint"/"Sainte" match "St."/"Ste.". Satellite QSOs (PROP_MODE=SAT or SAT_NAME) count only toward USA-CA Satellite.
+    Reference fields per the <a href="https://www.adif.org/" target="_blank" rel="noopener">ADIF specification</a>. Everything runs in your browser — no data leaves this page.
+  </footer>
+</div>
+</div>
+</div>
+
+<script>
+const USACA = {"Alabama":["Autauga","Baldwin","Barbour","Bibb","Blount","Bullock","Butler","Calhoun","Chambers","Cherokee","Chilton","Choctaw","Clarke","Clay","Cleburne","Coffee","Colbert","Conecuh","Coosa","Covington","Crenshaw","Cullman","Dale","Dallas","DeKalb","Elmore","Escambia","Etowah","Fayette","Franklin","Geneva","Greene","Hale","Henry","Houston","Jackson","Jefferson","Lamar","Lauderdale","Lawrence","Lee","Limestone","Lowndes","Macon","Madison","Marengo","Marion","Marshall","Mobile","Monroe","Montgomery","Morgan","Perry","Pickens","Pike","Randolph","Russell","Shelby","St. Clair","Sumter","Talladega","Tallapoosa","Tuscaloosa","Walker","Washington","Wilcox","Winston"],"Alaska":["First J. D. S E","Fourth J. D. C","Second J. D. N W","Third J. D. S C"],"Arizona":["Apache","Cochise","Coconino","Gila","Graham","Greenlee","La Paz","Maricopa","Mohave","Navajo","Pima","Pinal","Santa Cruz","Yavapai","Yuma"],"Arkansas":["Arkansas","Ashley","Baxter","Benton","Boone","Bradley","Calhoun","Carroll","Chicot","Clark","Clay","Cleburne","Cleveland","Columbia","Conway","Craighead","Crawford","Crittenden","Cross","Dallas","Desha","Drew","Faulkner","Franklin","Fulton","Garland","Grant","Greene","Hempstead","Hot Spring","Howard","Independence","Izard","Jackson","Jefferson","Johnson","Lafayette","Lawrence","Lee","Lincoln","Little River","Logan","Lonoke","Madison","Marion","Miller","Mississippi","Monroe","Montgomery","Nevada","Newton","Ouachita","Perry","Phillips","Pike","Poinsett","Polk","Pope","Prairie","Pulaski","Randolph","Saline","Scott","Searcy","Sebastian","Sevier","Sharp","St. Francis","Stone","Union","Van Buren","Washington","White","Woodruff","Yell"],"California":["Alameda","Alpine","Amador","Butte","Calaveras","Colusa","Contra Costa","Del Norte","El Dorado","Fresno","Glenn","Humboldt","Imperial","Inyo","Kern","Kings","Lake","Lassen","Los Angeles","Madera","Marin","Mariposa","Mendocino","Merced","Modoc","Mono","Monterey","Napa","Nevada","Orange","Placer","Plumas","Riverside","Sacramento","San Benito","San Bernardino","San Diego","San Francisco","San Joaquin","San Luis Obispo","San Mateo","Santa Barbara","Santa Clara","Santa Cruz","Shasta","Sierra","Siskiyou","Solano","Sonoma","Stanislaus","Sutter","Tehama","Trinity","Tulare","Tuolumne","Ventura","Yolo","Yuba"],"Colorado":["Adams","Alamosa","Arapahoe","Archuleta","Baca","Bent","Boulder","Broomfield","Chaffee","Cheyenne","Clear Creek","Conejos","Costilla","Crowley","Custer","Delta","Denver","Dolores","Douglas","Eagle","El Paso","Elbert","Fremont","Garfield","Gilpin","Grand","Gunnison","Hinsdale","Huerfano","Jackson","Jefferson","Kiowa","Kit Carson","La Plata","Lake","Larimer","Las Animas","Lincoln","Logan","Mesa","Mineral","Moffat","Montezuma","Montrose","Morgan","Otero","Ouray","Park","Phillips","Pitkin","Prowers","Pueblo","Rio Blanco","Rio Grande","Routt","Saguache","San Juan","San Miguel","Sedgwick","Summit","Teller","Washington","Weld","Yuma"],"Connecticut":["Fairfield","Hartford","Litchfield","Middlesex","New Haven","New London","Tolland","Windham"],"Delaware":["Kent","New Castle","Sussex"],"Florida":["Alachua","Baker","Bay","Bradford","Brevard","Broward","Calhoun","Charlotte","Citrus","Clay","Collier","Columbia","DeSoto","Dixie","Duval","Escambia","Flagler","Franklin","Gadsden","Gilchrist","Glades","Gulf","Hamilton","Hardee","Hendry","Hernando","Highlands","Hillsborough","Holmes","Indian River","Jackson","Jefferson","Lafayette","Lake","Lee","Leon","Levy","Liberty","Madison","Manatee","Marion","Martin","Miami-Dade","Monroe","Nassau","Okaloosa","Okeechobee","Orange","Osceola","Palm Beach","Pasco","Pinellas","Polk","Putnam","Santa Rosa","Sarasota","Seminole","St. Johns","St. Lucie","Sumter","Suwannee","Taylor","Union","Volusia","Wakulla","Walton","Washington"],"Georgia":["Appling","Atkinson","Bacon","Baker","Baldwin","Banks","Barrow","Bartow","Ben Hill","Berrien","Bibb","Bleckley","Brantley","Brooks","Bryan","Bulloch","Burke","Butts","Calhoun","Camden","Candler","Carroll","Catoosa","Charlton","Chatham","Chattahoochee","Chattooga","Cherokee","Clarke","Clay","Clayton","Clinch","Cobb","Coffee","Colquitt","Columbia","Cook","Coweta","Crawford","Crisp","Dade","Dawson","Decatur","DeKalb","Dodge","Dooly","Dougherty","Douglas","Early","Echols","Effingham","Elbert","Emanuel","Evans","Fannin","Fayette","Floyd","Forsyth","Franklin","Fulton","Gilmer","Glascock","Glynn","Gordon","Grady","Greene","Gwinnett","Habersham","Hall","Hancock","Haralson","Harris","Hart","Heard","Henry","Houston","Irwin","Jackson","Jasper","Jeff Davis","Jefferson","Jenkins","Johnson","Jones","Lamar","Lanier","Laurens","Lee","Liberty","Lincoln","Long","Lowndes","Lumpkin","Macon","Madison","Marion","McDuffie","McIntosh","Meriwether","Miller","Mitchell","Monroe","Montgomery","Morgan","Murray","Muscogee","Newton","Oconee","Oglethorpe","Paulding","Peach","Pickens","Pierce","Pike","Polk","Pulaski","Putnam","Quitman","Rabun","Randolph","Richmond","Rockdale","Schley","Screven","Seminole","Spalding","Stephens","Stewart","Sumter","Talbot","Taliaferro","Tattnall","Taylor","Telfair","Terrell","Thomas","Tift","Toombs","Towns","Treutlen","Troup","Turner","Twiggs","Union","Upson","Walker","Walton","Ware","Warren","Washington","Wayne","Webster","Wheeler","White","Whitfield","Wilcox","Wilkes","Wilkinson","Worth"],"Hawaii":["Hawaii","Honolulu","Kalawao","Kauai","Maui"],"Idaho":["Ada","Adams","Bannock","Bear Lake","Benewah","Bingham","Blaine","Boise","Bonner","Bonneville","Boundary","Butte","Camas","Canyon","Caribou","Cassia","Clark","Clearwater","Custer","Elmore","Franklin","Fremont","Gem","Gooding","Idaho","Jefferson","Jerome","Kootenai","Latah","Lemhi","Lewis","Lincoln","Madison","Minidoka","Nez Perce","Oneida","Owyhee","Payette","Power","Shoshone","Teton","Twin Falls","Valley","Washington"],"Illinois":["Adams","Alexander","Bond","Boone","Brown","Bureau","Calhoun","Carroll","Cass","Champaign","Christian","Clark","Clay","Clinton","Coles","Cook","Crawford","Cumberland","De Kalb","De Witt","Douglas","DuPage","Edgar","Edwards","Effingham","Fayette","Ford","Franklin","Fulton","Gallatin","Greene","Grundy","Hamilton","Hancock","Hardin","Henderson","Henry","Iroquois","Jackson","Jasper","Jefferson","Jersey","Jo Daviess","Johnson","Kane","Kankakee","Kendall","Knox","La Salle","Lake","Lawrence","Lee","Livingston","Logan","Macon","Macoupin","Madison","Marion","Marshall","Mason","Massac","McDonough","McHenry","McLean","Menard","Mercer","Monroe","Montgomery","Morgan","Moultrie","Ogle","Peoria","Perry","Piatt","Pike","Pope","Pulaski","Putnam","Randolph","Richland","Rock Island","Saline","Sangamon","Schuyler","Scott","Shelby","St. Clair","Stark","Stephenson","Tazewell","Union","Vermilion","Wabash","Warren","Washington","Wayne","White","Whiteside","Will","Williamson","Winnebago","Woodford"],"Indiana":["Adams","Allen","Bartholomew","Benton","Blackford","Boone","Brown","Carroll","Cass","Clark","Clay","Clinton","Crawford","Daviess","Dearborn","Decatur","DeKalb","Delaware","Dubois","Elkhart","Fayette","Floyd","Fountain","Franklin","Fulton","Gibson","Grant","Greene","Hamilton","Hancock","Harrison","Hendricks","Henry","Howard","Huntington","Jackson","Jasper","Jay","Jefferson","Jennings","Johnson","Knox","Kosciusko","La Porte","LaGrange","Lake","Lawrence","Madison","Marion","Marshall","Martin","Miami","Monroe","Montgomery","Morgan","Newton","Noble","Ohio","Orange","Owen","Parke","Perry","Pike","Porter","Posey","Pulaski","Putnam","Randolph","Ripley","Rush","Scott","Shelby","Spencer","St. Joseph","Starke","Steuben","Sullivan","Switzerland","Tippecanoe","Tipton","Union","Vanderburgh","Vermillion","Vigo","Wabash","Warren","Warrick","Washington","Wayne","Wells","White","Whitley"],"Iowa":["Adair","Adams","Allamakee","Appanoose","Audubon","Benton","Black Hawk","Boone","Bremer","Buchanan","Buena Vista","Butler","Calhoun","Carroll","Cass","Cedar","Cerro Gordo","Cherokee","Chickasaw","Clarke","Clay","Clayton","Clinton","Crawford","Dallas","Davis","Decatur","Delaware","Des Moines","Dickinson","Dubuque","Emmet","Fayette","Floyd","Franklin","Fremont","Greene","Grundy","Guthrie","Hamilton","Hancock","Hardin","Harrison","Henry","Howard","Humboldt","Ida","Iowa","Jackson","Jasper","Jefferson","Johnson","Jones","Keokuk","Kossuth","Lee","Linn","Louisa","Lucas","Lyon","Madison","Mahaska","Marion","Marshall","Mills","Mitchell","Monona","Monroe","Montgomery","Muscatine","O'Brien","Osceola","Page","Palo Alto","Plymouth","Pocahontas","Polk","Pottawattamie","Poweshiek","Ringgold","Sac","Scott","Shelby","Sioux","Story","Tama","Taylor","Union","Van Buren","Wapello","Warren","Washington","Wayne","Webster","Winnebago","Winneshiek","Woodbury","Worth","Wright"],"Kansas":["Allen","Anderson","Atchison","Barber","Barton","Bourbon","Brown","Butler","Chase","Chautauqua","Cherokee","Cheyenne","Clark","Clay","Cloud","Coffey","Comanche","Cowley","Crawford","Decatur","Dickinson","Doniphan","Douglas","Edwards","Elk","Ellis","Ellsworth","Finney","Ford","Franklin","Geary","Gove","Graham","Grant","Gray","Greeley","Greenwood","Hamilton","Harper","Harvey","Haskell","Hodgeman","Jackson","Jefferson","Jewell","Johnson","Kearny","Kingman","Kiowa","Labette","Lane","Leavenworth","Lincoln","Linn","Logan","Lyon","Marion","Marshall","McPherson","Meade","Miami","Mitchell","Montgomery","Morris","Morton","Nemaha","Neosho","Ness","Norton","Osage","Osborne","Ottawa","Pawnee","Phillips","Pottawatomie","Pratt","Rawlins","Reno","Republic","Rice","Riley","Rooks","Rush","Russell","Saline","Scott","Sedgwick","Seward","Shawnee","Sheridan","Sherman","Smith","Stafford","Stanton","Stevens","Sumner","Thomas","Trego","Wabaunsee","Wallace","Washington","Wichita","Wilson","Woodson","Wyandotte"],"Kentucky":["Adair","Allen","Anderson","Ballard","Barren","Bath","Bell","Boone","Bourbon","Boyd","Boyle","Bracken","Breathitt","Breckinridge","Bullitt","Butler","Caldwell","Calloway","Campbell","Carlisle","Carroll","Carter","Casey","Christian","Clark","Clay","Clinton","Crittenden","Cumberland","Daviess","Edmonson","Elliott","Estill","Fayette","Fleming","Floyd","Franklin","Fulton","Gallatin","Garrard","Grant","Graves","Grayson","Green","Greenup","Hancock","Hardin","Harlan","Harrison","Hart","Henderson","Henry","Hickman","Hopkins","Jackson","Jefferson","Jessamine","Johnson","Kenton","Knott","Knox","Larue","Laurel","Lawrence","Lee","Leslie","Letcher","Lewis","Lincoln","Livingston","Logan","Lyon","Madison","Magoffin","Marion","Marshall","Martin","Mason","McCracken","McCreary","McLean","Meade","Menifee","Mercer","Metcalfe","Monroe","Montgomery","Morgan","Muhlenberg","Nelson","Nicholas","Ohio","Oldham","Owen","Owsley","Pendleton","Perry","Pike","Powell","Pulaski","Robertson","Rockcastle","Rowan","Russell","Scott","Shelby","Simpson","Spencer","Taylor","Todd","Trigg","Trimble","Union","Warren","Washington","Wayne","Webster","Whitley","Wolfe","Woodford"],"Louisiana":["Acadia","Allen","Ascension","Assumption","Avoyelles","Beauregard","Bienville","Bossier","Caddo","Calcasieu","Caldwell","Cameron","Catahoula","Claiborne","Concordia","De Soto","East Baton Rouge","East Carroll","East Feliciana","Evangeline","Franklin","Grant","Iberia","Iberville","Jackson","Jefferson","Jefferson Davis","La Salle","Lafayette","Lafourche","Lincoln","Livingston","Madison","Morehouse","Natchitoches","Orleans","Ouachita","Plaquemines","Pointe Coupee","Rapides","Red River","Richland","Sabine","St. Bernard","St. Charles","St. Helena","St. James","St. John the Bts","St. Landry","St. Martin","St. Mary","St. Tammany","Tangipahoa","Tensas","Terrebonne","Union","Vermilion","Vernon","Washington","Webster","West Baton Rouge","West Carroll","West Feliciana","Winn"],"Maine":["Androscoggin","Aroostook","Cumberland","Franklin","Hancock","Kennebec","Knox","Lincoln","Oxford","Penobscot","Piscataquis","Sagadahoc","Somerset","Waldo","Washington","York"],"Maryland":["Allegany","Anne Arundel","Baltimore","Baltimore City","Calvert","Caroline","Carroll","Cecil","Charles","Dorchester","Frederick","Garrett","Harford","Howard","Kent","Montgomery","Prince George's","Queen Annes","Somerset","St. Mary's","Talbot","Washington","Wicomico","Worcester"],"Massachusetts":["Barnstable","Berkshire","Bristol","Dukes","Essex","Franklin","Hampden","Hampshire","Middlesex","Nantucket","Norfolk","Plymouth","Suffolk","Worcester"],"Michigan":["Alcona","Alger","Allegan","Alpena","Antrim","Arenac","Baraga","Barry","Bay","Benzie","Berrien","Branch","Calhoun","Cass","Charlevoix","Cheboygan","Chippewa","Clare","Clinton","Crawford","Delta","Dickinson","Eaton","Emmet","Genesee","Gladwin","Gogebic","Grand Traverse","Gratiot","Hillsdale","Houghton","Huron","Ingham","Ionia","Iosco","Iron","Isabella","Jackson","Kalamazoo","Kalkaska","Kent","Keweenaw","Lake","Lapeer","Leelanau","Lenawee","Livingston","Luce","Mackinac","Macomb","Manistee","Marquette","Mason","Mecosta","Menominee","Midland","Missaukee","Monroe","Montcalm","Montmorency","Muskegon","Newaygo","Oakland","Oceana","Ogemaw","Ontonagon","Osceola","Oscoda","Otsego","Ottawa","Presque Isle","Roscommon","Saginaw","Sanilac","Schoolcraft","Shiawassee","St. Clair","St. Joseph","Tuscola","Van Buren","Washtenaw","Wayne","Wexford"],"Minnesota":["Aitkin","Anoka","Becker","Beltrami","Benton","Big Stone","Blue Earth","Brown","Carlton","Carver","Cass","Chippewa","Chisago","Clay","Clearwater","Cook","Cottonwood","Crow Wing","Dakota","Dodge","Douglas","Faribault","Fillmore","Freeborn","Goodhue","Grant","Hennepin","Houston","Hubbard","Isanti","Itasca","Jackson","Kanabec","Kandiyohi","Kittson","Koochiching","Lac Qui Parle","Lake","Lake of the Woods","Le Sueur","Lincoln","Lyon","Mahnomen","Marshall","Martin","McLeod","Meeker","Mille Lacs","Morrison","Mower","Murray","Nicollet","Nobles","Norman","Olmsted","Otter Tail","Pennington","Pine","Pipestone","Polk","Pope","Ramsey","Red Lake","Redwood","Renville","Rice","Rock","Roseau","Scott","Sherburne","Sibley","St. Louis","Stearns","Steele","Stevens","Swift","Todd","Traverse","Wabasha","Wadena","Waseca","Washington","Watonwan","Wilkin","Winona","Wright","Yellow Medicine"],"Mississippi":["Adams","Alcorn","Amite","Attala","Benton","Bolivar","Calhoun","Carroll","Chickasaw","Choctaw","Claiborne","Clarke","Clay","Coahoma","Copiah","Covington","Desoto","Forrest","Franklin","George","Greene","Grenada","Hancock","Harrison","Hinds","Holmes","Humphreys","Issaquena","Itawamba","Jackson","Jasper","Jefferson","Jefferson Davis","Jones","Kemper","Lafayette","Lamar","Lauderdale","Lawrence","Leake","Lee","Leflore","Lincoln","Lowndes","Madison","Marion","Marshall","Monroe","Montgomery","Neshoba","Newton","Noxubee","Oktibbeha","Panola","Pearl River","Perry","Pike","Pontotoc","Prentiss","Quitman","Rankin","Scott","Sharkey","Simpson","Smith","Stone","Sunflower","Tallahatchie","Tate","Tippah","Tishomingo","Tunica","Union","Walthall","Warren","Washington","Wayne","Webster","Wilkinson","Winston","Yalobusha","Yazoo"],"Missouri":["Adair","Andrew","Atchison","Audrain","Barry","Barton","Bates","Benton","Bollinger","Boone","Buchanan","Butler","Caldwell","Callaway","Camden","Cape Girardeau","Carroll","Carter","Cass","Cedar","Chariton","Christian","Clark","Clay","Clinton","Cole","Cooper","Crawford","Dade","Dallas","Daviess","DeKalb","Dent","Douglas","Dunklin","Franklin","Gasconade","Gentry","Greene","Grundy","Harrison","Henry","Hickory","Holt","Howard","Howell","Iron","Jackson","Jasper","Jefferson","Johnson","Knox","Laclede","Lafayette","Lawrence","Lewis","Lincoln","Linn","Livingston","Macon","Madison","Maries","Marion","McDonald","Mercer","Miller","Mississippi","Moniteau","Monroe","Montgomery","Morgan","New Madrid","Newton","Nodaway","Oregon","Osage","Ozark","Pemiscot","Perry","Pettis","Phelps","Pike","Platte","Polk","Pulaski","Putnam","Ralls","Randolph","Ray","Reynolds","Ripley","Saline","Schuyler","Scotland","Scott","Shannon","Shelby","St. Charles","St. Clair","St. Francois","St. Louis","St. Louis City","Ste. Genevieve","Stoddard","Stone","Sullivan","Taney","Texas","Vernon","Warren","Washington","Wayne","Webster","Worth","Wright"],"Montana":["Beaverhead","Big Horn","Blaine","Broadwater","Carbon","Carter","Cascade","Chouteau","Custer","Daniels","Dawson","Deer Lodge","Fallon","Fergus","Flathead","Gallatin","Garfield","Glacier","Golden Valley","Granite","Hill","Jefferson","Judith Basin","Lake","Lewis and Clark","Liberty","Lincoln","Madison","McCone","Meagher","Mineral","Missoula","Musselshell","Park","Petroleum","Phillips","Pondera","Powder River","Powell","Prairie","Ravalli","Richland","Roosevelt","Rosebud","Sanders","Sheridan","Silver Bow","Stillwater","Sweet Grass","Teton","Toole","Treasure","Valley","Wheatland","Wibaux","Yellowstone"],"Nebraska":["Adams","Antelope","Arthur","Banner","Blaine","Boone","Box Butte","Boyd","Brown","Buffalo","Burt","Butler","Cass","Cedar","Chase","Cherry","Cheyenne","Clay","Colfax","Cuming","Custer","Dakota","Dawes","Dawson","Deuel","Dixon","Dodge","Douglas","Dundy","Fillmore","Franklin","Frontier","Furnas","Gage","Garden","Garfield","Gosper","Grant","Greeley","Hall","Hamilton","Harlan","Hayes","Hitchcock","Holt","Hooker","Howard","Jefferson","Johnson","Kearney","Keith","Keya Paha","Kimball","Knox","Lancaster","Lincoln","Logan","Loup","Madison","McPherson","Merrick","Morrill","Nance","Nemaha","Nuckolls","Otoe","Pawnee","Perkins","Phelps","Pierce","Platte","Polk","Red Willow","Richardson","Rock","Saline","Sarpy","Saunders","Scotts Bluff","Seward","Sheridan","Sherman","Sioux","Stanton","Thayer","Thomas","Thurston","Valley","Washington","Wayne","Webster","Wheeler","York"],"Nevada":["Churchill","Clark","Douglas","Elko","Esmeralda","Eureka","Humboldt","Lander","Lincoln","Lyon","Mineral","Nye","Pershing","Storey","Washoe","White Pine"],"New Hampshire":["Belknap","Carroll","Cheshire","Coos","Grafton","Hillsborough","Merrimack","Rockingham","Strafford","Sullivan"],"New Jersey":["Atlantic","Bergen","Burlington","Camden","Cape May","Cumberland","Essex","Gloucester","Hudson","Hunterdon","Mercer","Middlesex","Monmouth","Morris","Ocean","Passaic","Salem","Somerset","Sussex","Union","Warren"],"New Mexico":["Bernalillo","Catron","Chaves","Cibola","Colfax","Curry","De Baca","Dona Ana","Eddy","Grant","Guadalupe","Harding","Hidalgo","Lea","Lincoln","Los Alamos","Luna","McKinley","Mora","Otero","Quay","Rio Arriba","Roosevelt","San Juan","San Miguel","Sandoval","Santa Fe","Sierra","Socorro","Taos","Torrance","Union","Valencia"],"New York":["Albany","Allegany","Bronx","Broome","Cattaraugus","Cayuga","Chautauqua","Chemung","Chenango","Clinton","Columbia","Cortland","Delaware","Dutchess","Erie","Essex","Franklin","Fulton","Genesee","Greene","Hamilton","Herkimer","Jefferson","Kings","Lewis","Livingston","Madison","Monroe","Montgomery","Nassau","New York","Niagara","Oneida","Onondaga","Ontario","Orange","Orleans","Oswego","Otsego","Putnam","Queens","Rensselaer","Richmond","Rockland","Saratoga","Schenectady","Schoharie","Schuyler","Seneca","St. Lawrence","Steuben","Suffolk","Sullivan","Tioga","Tompkins","Ulster","Warren","Washington","Wayne","Westchester","Wyoming","Yates"],"North Carolina":["Alamance","Alexander","Alleghany","Anson","Ashe","Avery","Beaufort","Bertie","Bladen","Brunswick","Buncombe","Burke","Cabarrus","Caldwell","Camden","Carteret","Caswell","Catawba","Chatham","Cherokee","Chowan","Clay","Cleveland","Columbus","Craven","Cumberland","Currituck","Dare","Davidson","Davie","Duplin","Durham","Edgecombe","Forsyth","Franklin","Gaston","Gates","Graham","Granville","Greene","Guilford","Halifax","Harnett","Haywood","Henderson","Hertford","Hoke","Hyde","Iredell","Jackson","Johnston","Jones","Lee","Lenoir","Lincoln","Macon","Madison","Martin","McDowell","Mecklenburg","Mitchell","Montgomery","Moore","Nash","New Hanover","Northampton","Onslow","Orange","Pamlico","Pasquotank","Pender","Perquimans","Person","Pitt","Polk","Randolph","Richmond","Robeson","Rockingham","Rowan","Rutherford","Sampson","Scotland","Stanly","Stokes","Surry","Swain","Transylvania","Tyrrell","Union","Vance","Wake","Warren","Washington","Watauga","Wayne","Wilkes","Wilson","Yadkin","Yancey"],"North Dakota":["Adams","Barnes","Benson","Billings","Bottineau","Bowman","Burke","Burleigh","Cass","Cavalier","Dickey","Divide","Dunn","Eddy","Emmons","Foster","Golden Valley","Grand Forks","Grant","Griggs","Hettinger","Kidder","LaMoure","Logan","McHenry","McIntosh","McKenzie","McLean","Mercer","Morton","Mountrail","Nelson","Oliver","Pembina","Pierce","Ramsey","Ransom","Renville","Richland","Rolette","Sargent","Sheridan","Sioux","Slope","Stark","Steele","Stutsman","Towner","Traill","Walsh","Ward","Wells","Williams"],"Ohio":["Adams","Allen","Ashland","Ashtabula","Athens","Auglaize","Belmont","Brown","Butler","Carroll","Champaign","Clark","Clermont","Clinton","Columbiana","Coshocton","Crawford","Cuyahoga","Darke","Defiance","Delaware","Erie","Fairfield","Fayette","Franklin","Fulton","Gallia","Geauga","Greene","Guernsey","Hamilton","Hancock","Hardin","Harrison","Henry","Highland","Hocking","Holmes","Huron","Jackson","Jefferson","Knox","Lake","Lawrence","Licking","Logan","Lorain","Lucas","Madison","Mahoning","Marion","Medina","Meigs","Mercer","Miami","Monroe","Montgomery","Morgan","Morrow","Muskingum","Noble","Ottawa","Paulding","Perry","Pickaway","Pike","Portage","Preble","Putnam","Richland","Ross","Sandusky","Scioto","Seneca","Shelby","Stark","Summit","Trumbull","Tuscarawas","Union","Van Wert","Vinton","Warren","Washington","Wayne","Williams","Wood","Wyandot"],"Oklahoma":["Adair","Alfalfa","Atoka","Beaver","Beckham","Blaine","Bryan","Caddo","Canadian","Carter","Cherokee","Choctaw","Cimarron","Cleveland","Coal","Comanche","Cotton","Craig","Creek","Custer","Delaware","Dewey","Ellis","Garfield","Garvin","Grady","Grant","Greer","Harmon","Harper","Haskell","Hughes","Jackson","Jefferson","Johnston","Kay","Kingfisher","Kiowa","Latimer","Le Flore","Lincoln","Logan","Love","Major","Marshall","Mayes","McClain","McCurtain","McIntosh","Murray","Muskogee","Noble","Nowata","Okfuskee","Oklahoma","Okmulgee","Osage","Ottawa","Pawnee","Payne","Pittsburg","Pontotoc","Pottawatomie","Pushmataha","Roger Mills","Rogers","Seminole","Sequoyah","Stephens","Texas","Tillman","Tulsa","Wagoner","Washington","Washita","Woods","Woodward"],"Oregon":["Baker","Benton","Clackamas","Clatsop","Columbia","Coos","Crook","Curry","Deschutes","Douglas","Gilliam","Grant","Harney","Hood River","Jackson","Jefferson","Josephine","Klamath","Lake","Lane","Lincoln","Linn","Malheur","Marion","Morrow","Multnomah","Polk","Sherman","Tillamook","Umatilla","Union","Wallowa","Wasco","Washington","Wheeler","Yamhill"],"Pennsylvania":["Adams","Allegheny","Armstrong","Beaver","Bedford","Berks","Blair","Bradford","Bucks","Butler","Cambria","Cameron","Carbon","Centre","Chester","Clarion","Clearfield","Clinton","Columbia","Crawford","Cumberland","Dauphin","Delaware","Elk","Erie","Fayette","Forest","Franklin","Fulton","Greene","Huntingdon","Indiana","Jefferson","Juniata","Lackawanna","Lancaster","Lawrence","Lebanon","Lehigh","Luzerne","Lycoming","McKean","Mercer","Mifflin","Monroe","Montgomery","Montour","Northampton","Northumberland","Perry","Philadelphia","Pike","Potter","Schuylkill","Snyder","Somerset","Sullivan","Susquehanna","Tioga","Union","Venango","Warren","Washington","Wayne","Westmoreland","Wyoming","York"],"Rhode Island":["Bristol","Kent","Newport","Providence","Washington"],"South Carolina":["Abbeville","Aiken","Allendale","Anderson","Bamberg","Barnwell","Beaufort","Berkeley","Calhoun","Charleston","Cherokee","Chester","Chesterfield","Clarendon","Colleton","Darlington","Dillon","Dorchester","Edgefield","Fairfield","Florence","Georgetown","Greenville","Greenwood","Hampton","Horry","Jasper","Kershaw","Lancaster","Laurens","Lee","Lexington","Marion","Marlboro","McCormick","Newberry","Oconee","Orangeburg","Pickens","Richland","Saluda","Spartanburg","Sumter","Union","Williamsburg","York"],"South Dakota":["Aurora","Beadle","Bennett","Bon Homme","Brookings","Brown","Brule","Buffalo","Butte","Campbell","Charles Mix","Clark","Clay","Codington","Corson","Custer","Davison","Day","Deuel","Dewey","Douglas","Edmunds","Fall River","Faulk","Grant","Gregory","Haakon","Hamlin","Hand","Hanson","Harding","Hughes","Hutchinson","Hyde","Jackson","Jerauld","Jones","Kingsbury","Lake","Lawrence","Lincoln","Lyman","Marshall","McCook","McPherson","Meade","Mellette","Miner","Minnehaha","Moody","Oglala Lakota","Pennington","Perkins","Potter","Roberts","Sanborn","Spink","Stanley","Sully","Todd","Tripp","Turner","Union","Walworth","Yankton","Ziebach"],"Tennessee":["Anderson","Bedford","Benton","Bledsoe","Blount","Bradley","Campbell","Cannon","Carroll","Carter","Cheatham","Chester","Claiborne","Clay","Cocke","Coffee","Crockett","Cumberland","Davidson","Decatur","DeKalb","Dickson","Dyer","Fayette","Fentress","Franklin","Gibson","Giles","Grainger","Greene","Grundy","Hamblen","Hamilton","Hancock","Hardeman","Hardin","Hawkins","Haywood","Henderson","Henry","Hickman","Houston","Humphreys","Jackson","Jefferson","Johnson","Knox","Lake","Lauderdale","Lawrence","Lewis","Lincoln","Loudon","Macon","Madison","Marion","Marshall","Maury","McMinn","McNairy","Meigs","Monroe","Montgomery","Moore","Morgan","Obion","Overton","Perry","Pickett","Polk","Putnam","Rhea","Roane","Robertson","Rutherford","Scott","Sequatchie","Sevier","Shelby","Smith","Stewart","Sullivan","Sumner","Tipton","Trousdale","Unicoi","Union","Van Buren","Warren","Washington","Wayne","Weakley","White","Williamson","Wilson"],"Texas":["Anderson","Andrews","Angelina","Aransas","Archer","Armstrong","Atascosa","Austin","Bailey","Bandera","Bastrop","Baylor","Bee","Bell","Bexar","Blanco","Borden","Bosque","Bowie","Brazoria","Brazos","Brewster","Briscoe","Brooks","Brown","Burleson","Burnet","Caldwell","Calhoun","Callahan","Cameron","Camp","Carson","Cass","Castro","Chambers","Cherokee","Childress","Clay","Cochran","Coke","Coleman","Collin","Collingsworth","Colorado","Comal","Comanche","Concho","Cooke","Coryell","Cottle","Crane","Crockett","Crosby","Culberson","Dallam","Dallas","Dawson","Deaf Smith","Delta","Denton","DeWitt","Dickens","Dimmit","Donley","Duval","Eastland","Ector","Edwards","El Paso","Ellis","Erath","Falls","Fannin","Fayette","Fisher","Floyd","Foard","Fort Bend","Franklin","Freestone","Frio","Gaines","Galveston","Garza","Gillespie","Glasscock","Goliad","Gonzales","Gray","Grayson","Gregg","Grimes","Guadalupe","Hale","Hall","Hamilton","Hansford","Hardeman","Hardin","Harris","Harrison","Hartley","Haskell","Hays","Hemphill","Henderson","Hidalgo","Hill","Hockley","Hood","Hopkins","Houston","Howard","Hudspeth","Hunt","Hutchinson","Irion","Jack","Jackson","Jasper","Jeff Davis","Jefferson","Jim Hogg","Jim Wells","Johnson","Jones","Karnes","Kaufman","Kendall","Kenedy","Kent","Kerr","Kimble","King","Kinney","Kleberg","Knox","La Salle","Lamar","Lamb","Lampasas","Lavaca","Lee","Leon","Liberty","Limestone","Lipscomb","Live Oak","Llano","Loving","Lubbock","Lynn","Madison","Marion","Martin","Mason","Matagorda","Maverick","McCulloch","McLennan","McMullen","Medina","Menard","Midland","Milam","Mills","Mitchell","Montague","Montgomery","Moore","Morris","Motley","Nacogdoches","Navarro","Newton","Nolan","Nueces","Ochiltree","Oldham","Orange","Palo Pinto","Panola","Parker","Parmer","Pecos","Polk","Potter","Presidio","Rains","Randall","Reagan","Real","Red River","Reeves","Refugio","Roberts","Robertson","Rockwall","Runnels","Rusk","Sabine","San Augustine","San Jacinto","San Patricio","San Saba","Schleicher","Scurry","Shackelford","Shelby","Sherman","Smith","Somervell","Starr","Stephens","Sterling","Stonewall","Sutton","Swisher","Tarrant","Taylor","Terrell","Terry","Throckmorton","Titus","Tom Green","Travis","Trinity","Tyler","Upshur","Upton","Uvalde","Val Verde","Van Zandt","Victoria","Walker","Waller","Ward","Washington","Webb","Wharton","Wheeler","Wichita","Wilbarger","Willacy","Williamson","Wilson","Winkler","Wise","Wood","Yoakum","Young","Zapata","Zavala"],"Utah":["Beaver","Box Elder","Cache","Carbon","Daggett","Davis","Duchesne","Emery","Garfield","Grand","Iron","Juab","Kane","Millard","Morgan","Piute","Rich","Salt Lake","San Juan","Sanpete","Sevier","Summit","Tooele","Uintah","Utah","Wasatch","Washington","Wayne","Weber"],"Vermont":["Addison","Bennington","Caledonia","Chittenden","Essex","Franklin","Grand Isle","Lamoille","Orange","Orleans","Rutland","Washington","Windham","Windsor"],"Virginia":["Accomack","Albemarle","Alleghany","Amelia","Amherst","Appomattox","Arlington","Augusta","Bath","Bedford","Bland","Botetourt","Brunswick","Buchanan","Buckingham","Campbell","Caroline","Carroll","Charles City","Charlotte","Chesterfield","Clarke","Craig","Culpeper","Cumberland","Dickenson","Dinwiddie","Essex","Fairfax","Fauquier","Floyd","Fluvanna","Franklin","Frederick","Giles","Gloucester","Goochland","Grayson","Greene","Greensville","Halifax","Hanover","Henrico","Henry","Highland","Isle of Wight","James City","King and Queen","King George","King William","Lancaster","Lee","Loudoun","Louisa","Lunenburg","Madison","Mathews","Mecklenburg","Middlesex","Montgomery","Nelson","New Kent","Northampton","Northumberland","Nottoway","Orange","Page","Patrick","Pittsylvania","Powhatan","Prince Edward","Prince George","Prince William","Pulaski","Rappahannock","Richmond","Roanoke","Rockbridge","Rockingham","Russell","Scott","Shenandoah","Smyth","Southampton","Spotsylvania","Stafford","Surry","Sussex","Tazewell","Warren","Washington","Westmoreland","Wise","Wythe","York"],"Washington":["Adams","Asotin","Benton","Chelan","Clallam","Clark","Columbia","Cowlitz","Douglas","Ferry","Franklin","Garfield","Grant","Grays Harbor","Island","Jefferson","King","Kitsap","Kittitas","Klickitat","Lewis","Lincoln","Mason","Okanogan","Pacific","Pend Oreille","Pierce","San Juan","Skagit","Skamania","Snohomish","Spokane","Stevens","Thurston","Wahkiakum","Walla Walla","Whatcom","Whitman","Yakima"],"West Virginia":["Barbour","Berkeley","Boone","Braxton","Brooke","Cabell","Calhoun","Clay","Doddridge","Fayette","Gilmer","Grant","Greenbrier","Hampshire","Hancock","Hardy","Harrison","Jackson","Jefferson","Kanawha","Lewis","Lincoln","Logan","Marion","Marshall","Mason","McDowell","Mercer","Mineral","Mingo","Monongalia","Monroe","Morgan","Nicholas","Ohio","Pendleton","Pleasants","Pocahontas","Preston","Putnam","Raleigh","Randolph","Ritchie","Roane","Summers","Taylor","Tucker","Tyler","Upshur","Wayne","Webster","Wetzel","Wirt","Wood","Wyoming"],"Wisconsin":["Adams","Ashland","Barron","Bayfield","Brown","Buffalo","Burnett","Calumet","Chippewa","Clark","Columbia","Crawford","Dane","Dodge","Door","Douglas","Dunn","Eau Claire","Florence","Fond du Lac","Forest","Grant","Green","Green Lake","Iowa","Iron","Jackson","Jefferson","Juneau","Kenosha","Kewaunee","La Crosse","Lafayette","Langlade","Lincoln","Manitowoc","Marathon","Marinette","Marquette","Menominee","Milwaukee","Monroe","Oconto","Oneida","Outagamie","Ozaukee","Pepin","Pierce","Polk","Portage","Price","Racine","Richland","Rock","Rusk","Sauk","Sawyer","Shawano","Sheboygan","St. Croix","Taylor","Trempealeau","Vernon","Vilas","Walworth","Washburn","Washington","Waukesha","Waupaca","Waushara","Winnebago","Wood"],"Wyoming":["Albany","Big Horn","Campbell","Carbon","Converse","Crook","Fremont","Goshen","Hot Springs","Johnson","Laramie","Lincoln","Natrona","Niobrara","Park","Platte","Sheridan","Sublette","Sweetwater","Teton","Uinta","Washakie","Weston"]};
+/* ADIF Award Scanner — core logic (no DOM). Embedded verbatim in the HTML app. */
+
+const STATE_ABBR = {
+  "ALABAMA":"AL","ALASKA":"AK","ARIZONA":"AZ","ARKANSAS":"AR","CALIFORNIA":"CA","COLORADO":"CO",
+  "CONNECTICUT":"CT","DELAWARE":"DE","FLORIDA":"FL","GEORGIA":"GA","HAWAII":"HI","IDAHO":"ID",
+  "ILLINOIS":"IL","INDIANA":"IN","IOWA":"IA","KANSAS":"KS","KENTUCKY":"KY","LOUISIANA":"LA",
+  "MAINE":"ME","MARYLAND":"MD","MASSACHUSETTS":"MA","MICHIGAN":"MI","MINNESOTA":"MN",
+  "MISSISSIPPI":"MS","MISSOURI":"MO","MONTANA":"MT","NEBRASKA":"NE","NEVADA":"NV",
+  "NEW HAMPSHIRE":"NH","NEW JERSEY":"NJ","NEW MEXICO":"NM","NEW YORK":"NY","NORTH CAROLINA":"NC",
+  "NORTH DAKOTA":"ND","OHIO":"OH","OKLAHOMA":"OK","OREGON":"OR","PENNSYLVANIA":"PA",
+  "RHODE ISLAND":"RI","SOUTH CAROLINA":"SC","SOUTH DAKOTA":"SD","TENNESSEE":"TN","TEXAS":"TX",
+  "UTAH":"UT","VERMONT":"VT","VIRGINIA":"VA","WASHINGTON":"WA","WEST VIRGINIA":"WV",
+  "WISCONSIN":"WI","WYOMING":"WY","DISTRICT OF COLUMBIA":"DC"
+};
+const ABBR_STATE = Object.fromEntries(Object.entries(STATE_ABBR).map(([k,v])=>[v,k]));
+
+/* Normalize a county name for matching: uppercase, drop parentheticals, keep A-Z0-9 only.
+   "St. Clair" -> STCLAIR; "Third J.D. SC" and "Third J. D. S C" -> THIRDJDSC; "De Kalb"/"DeKalb" -> DEKALB */
+function normCounty(s){
+  return String(s||"").toUpperCase().replace(/\(.*?\)/g,"")
+    .replace(/\bSAINTE\b/g,"STE").replace(/\bSAINT\b/g,"ST")
+    .replace(/[^A-Z0-9]/g,"");
+}
+function countyKey(stateAbbr, county){ return stateAbbr + "|" + normCounty(county); }
+
+/* Alaska callbook "counties" (boroughs / census areas) -> USA-CA judicial districts */
+const AK_JD = (() => {
+  const jd = {
+    "First J.D. SE": ["Haines","Hoonah-Angoon","Juneau","Ketchikan Gateway","Ketchikan","Petersburg",
+      "Prince of Wales-Hyder","Prince of Wales-Outer Ketchikan","Sitka","Skagway","Skagway-Hoonah-Angoon",
+      "Wrangell","Wrangell-Petersburg","Yakutat"],
+    "Second J.D. NW": ["Nome","North Slope","Northwest Arctic"],
+    "Third J.D. SC": ["Aleutians East","Aleutians West","Anchorage","Bristol Bay","Chugach",
+      "Chugach (Valdez-Cordova)","Valdez-Cordova","Copper River","Dillingham","Kenai Peninsula","Kenai",
+      "Kodiak Island","Kodiak","Lake and Peninsula","Matanuska-Susitna","Mat-Su"],
+    "Fourth J.D. C": ["Bethel","Denali","Fairbanks North Star","Fairbanks","Kusilvak","Wade Hampton",
+      "Southeast Fairbanks","Yukon-Koyukuk"]
+  };
+  const map = new Map();
+  for(const [district, list] of Object.entries(jd))
+    for(const b of list) map.set(normCounty(b), district);
+  return map;
+})();
+/* Returns the USA-CA county name for a state+county, translating AK boroughs to judicial districts. */
+function canonCounty(stateAbbr, county){
+  if(stateAbbr === "AK"){
+    const jd = AK_JD.get(normCounty(county));
+    if(jd) return jd;
+  }
+  return county;
+}
+
+/* ---------- Mode grouping ---------- */
+const PHONE_MODES = new Set(["SSB","USB","LSB","AM","FM","PHONE","DIGITALVOICE","C4FM","DSTAR","DMR","FREEDV"]);
+function modeGroup(mode, submode){
+  const m = String(mode||"").toUpperCase().trim();
+  const sm = String(submode||"").toUpperCase().trim();
+  if(!m) return "UNKNOWN";
+  if(m === "CW") return "CW";
+  if(PHONE_MODES.has(m) || PHONE_MODES.has(sm)) return "SSB";
+  return "DIGITAL";
+}
+
+/* ---------- ADIF parsing ---------- */
+function parseADIF(text){
+  const eoh = text.search(/<eoh>/i);
+  const body = eoh >= 0 ? text.slice(eoh + 5) : text;
+  const recs = [];
+  const chunks = body.split(/<eor>/i);
+  const fieldRe = /<([A-Za-z0-9_]+):(\d+)(?::[^>]*)?>/g;
+  for(const chunk of chunks){
+    fieldRe.lastIndex = 0;
+    const rec = {};
+    let m, any = false;
+    while((m = fieldRe.exec(chunk))){
+      const name = m[1].toUpperCase();
+      const len = parseInt(m[2], 10);
+      const val = chunk.substr(fieldRe.lastIndex, len);
+      fieldRe.lastIndex += len;
+      rec[name] = val.trim();
+      any = true;
+    }
+    if(any && (rec.CALL || rec.QSO_DATE || rec.BAND || rec.MODE)) recs.push(rec);
+  }
+  return recs;
+}
+
+/* ---------- Reference extraction from one QSO ---------- */
+/* Returns {pota:[], wwff:[], sota:[]} for the WORKED station (plus MY_ side if includeMy). */
+function extractRefs(rec, includeMy){
+  const out = { pota:[], wwff:[], sota:[] };
+  const push = (arr, v) => {
+    for(const piece of String(v||"").split(",")){
+      const r = piece.trim().toUpperCase();
+      if(r && !arr.includes(r)) arr.push(r);
+    }
+  };
+  const sides = includeMy ? ["", "MY_"] : [""];
+  for(const p of sides){
+    if(rec[p+"POTA_REF"]) push(out.pota, rec[p+"POTA_REF"]);
+    if(rec[p+"SOTA_REF"]) push(out.sota, rec[p+"SOTA_REF"]);
+    if(rec[p+"WWFF_REF"]) push(out.wwff, rec[p+"WWFF_REF"]);
+    const sig = String(rec[p+"SIG"]||"").toUpperCase().trim();
+    const si  = rec[p+"SIG_INFO"];
+    if(si){
+      if(sig === "POTA") push(out.pota, si);
+      else if(sig === "WWFF") push(out.wwff, si);
+      else if(sig === "SOTA") push(out.sota, si);
+      else if(!sig){
+        // No SIG label: infer from the reference shape.
+        const v = String(si).toUpperCase().trim();
+        if(/^[A-Z0-9]{1,4}FF-\d+$/.test(v)) push(out.wwff, v);
+        else if(/^[A-Z0-9]+\/[A-Z]{2}-\d{3}$/.test(v)) push(out.sota, v);
+      }
+    }
+  }
+  return out;
+}
+
+/* POTA refs may carry an "@US-XX" location suffix for multi-entity parks. */
+function splitPotaRef(ref){
+  const i = ref.indexOf("@");
+  if(i < 0) return { id: ref, loc: null };
+  return { id: ref.slice(0, i), loc: ref.slice(i + 1).toUpperCase() };
+}
+
+/* Legacy POTA prefixes (pre-2023 renumbering): K-1234 -> US-1234, VE-1234 -> CA-1234.
+   Returns {id, legacy, original}. */
+const LEGACY_POTA_PREFIX = { "K": "US", "VE": "CA" };
+function modernizePotaId(id){
+  const m = String(id).toUpperCase().match(/^([A-Z]{1,2})-(\d+)$/);
+  if(m && LEGACY_POTA_PREFIX[m[1]]){
+    return { id: LEGACY_POTA_PREFIX[m[1]] + "-" + m[2], legacy: true, original: id };
+  }
+  return { id: String(id).toUpperCase(), legacy: false, original: id };
+}
+
+/* ---------- Lookup file parsing ---------- */
+/* Park file: columns WWFF-ID, POTA-ID, NAME, TYPE, LOCATION(US-XX), COUNTIES.
+   Tolerates tab or comma delimiters and rows where the park NAME itself split into
+   extra columns: we anchor on the US-XX field and take the last column as counties. */
+function addParkEntries(map, ref, entries){
+  const cur = map.get(ref) || [];
+  for(const e of entries){
+    if(!cur.some(x => x.state === e.state && normCounty(x.county) === normCounty(e.county))) cur.push(e);
+  }
+  map.set(ref, cur);
+}
+function parseParkLookup(text){
+  const potaMap = new Map();  // "US-0001" -> [{state, county}]
+  const wwffMap = new Map();  // "KFF-0001" -> [{state, county}]
+  const names = new Map();    // ref -> park name
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  let rows = 0, skipped = 0;
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const delim = line.includes("\t") ? "\t" : ",";
+    const cols = line.split(delim).map(c => c.trim()).filter((c,i,a) => !(c === "" && i >= a.length - 3));
+    if(cols.length < 3) continue;
+    if(/^WWFF-ID$/i.test(cols[0])) continue; // header
+    const locIdx = cols.findIndex(c => /^US-[A-Z]{2}$/i.test(c));
+    if(locIdx < 0 || locIdx === cols.length - 1){ skipped++; continue; }
+    const state = cols[locIdx].slice(3).toUpperCase();
+    const counties = cols.slice(locIdx + 1).join(",").split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    if(!counties.length){ skipped++; continue; }
+    const entries = counties.map(c => ({ state, county: canonCounty(state, c) }));
+    const wwff = cols[0].toUpperCase();
+    const pota = (cols[1]||"").toUpperCase();
+    const pname = cols.slice(2, locIdx).filter(Boolean).join(", ");
+    if(/^[A-Z0-9]{1,4}FF-\d+$/.test(wwff)){
+      addParkEntries(wwffMap, wwff, entries);
+      if(pname && !names.has(wwff)) names.set(wwff, pname);
+    }
+    if(/^[A-Z]{1,2}-\d+$/.test(pota)){
+      addParkEntries(potaMap, pota, entries);
+      if(pname && !names.has(pota)) names.set(pota, pname);
+    }
+    rows++;
+  }
+  return { potaMap, wwffMap, names, rows, skipped };
+}
+
+/* KFF Park-County Database workbook (.xls): rows from sheets whose header contains
+   WWFF-ID / POTA-ID / LOCATION / COUNTIES (e.g. "WWFF USA", "WWFF not in POTA",
+   "Multi-State & Combined"). Pass array-of-row-arrays per sheet. */
+function parseParkXlsRows(sheets){
+  const potaMap = new Map(), wwffMap = new Map(), names = new Map();
+  let rows = 0, sheetsUsed = 0;
+  for(const rowsArr of sheets){
+    let hdr = -1, col = {};
+    for(let r = 0; r < Math.min(rowsArr.length, 10); r++){
+      const cells = rowsArr[r].map(c => String(c||"").trim().toUpperCase());
+      const iw = cells.indexOf("WWFF-ID"), ip = cells.indexOf("POTA-ID");
+      const il = cells.indexOf("LOCATION"), ic = cells.indexOf("COUNTIES");
+      if((iw >= 0 || ip >= 0) && il >= 0 && ic >= 0){
+        hdr = r;
+        col = { wwff: iw, pota: ip, loc: il, cty: ic, name: cells.indexOf("NAME"), type: cells.indexOf("TYPE") };
+        break;
+      }
+    }
+    if(hdr < 0) continue;
+    sheetsUsed++;
+    for(let r = hdr + 1; r < rowsArr.length; r++){
+      const row = rowsArr[r].map(c => String(c||"").trim());
+      const loc = (row[col.loc]||"").toUpperCase();
+      const m = loc.match(/^US-([A-Z]{2})$/);
+      if(!m) continue;
+      const state = m[1];
+      const counties = (row[col.cty]||"").split(/[,;]/).map(x => x.trim()).filter(Boolean);
+      if(!counties.length) continue;
+      const entries = counties.map(c => ({ state, county: canonCounty(state, c) }));
+      const wwff = col.wwff >= 0 ? (row[col.wwff]||"").toUpperCase() : "";
+      const pota = col.pota >= 0 ? (row[col.pota]||"").toUpperCase() : "";
+      const pname = [col.name >= 0 ? row[col.name] : "", col.type >= 0 ? row[col.type] : ""].filter(Boolean).join(" ");
+      if(/^[A-Z0-9]{1,4}FF-\d+$/.test(wwff)){
+        addParkEntries(wwffMap, wwff, entries);
+        if(pname && !names.has(wwff)) names.set(wwff, pname);
+      }
+      if(/^[A-Z]{1,2}-\d+$/.test(pota)){
+        addParkEntries(potaMap, pota, entries);
+        if(pname && !names.has(pota)) names.set(pota, pname);
+      }
+      rows++;
+    }
+  }
+  return { potaMap, wwffMap, names, rows, sheetsUsed };
+}
+
+/* POTA "all references" export (reference,name,...,locationDesc,...): names only, no counties. */
+function parsePotaAllRefs(text){
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const map = new Map();
+  let header = null, iRef = 0, iName = 1, iLoc = 5;
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const cols = parseCsvRow(line);
+    if(!header){
+      header = cols.map(c => c.trim().toLowerCase());
+      iRef = header.indexOf("reference"); iName = header.indexOf("name"); iLoc = header.indexOf("locationdesc");
+      if(iRef < 0){ iRef = 0; iName = 1; iLoc = 5; }
+      else continue;
+    }
+    const ref = (cols[iRef]||"").toUpperCase().trim();
+    if(!/^[A-Z]{1,2}-\d+$/.test(ref)) continue;
+    map.set(ref, { name: cols[iName]||"", loc: (cols[iLoc]||"").toUpperCase() });
+  }
+  return map;
+}
+
+/* SOTA file: SOTA-REF,COUNTY,STATE */
+function parseSotaLookup(text){
+  const map = new Map();
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  let rows = 0;
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const cols = line.split(",").map(c => c.trim());
+    if(/^SOTA-?REF$/i.test(cols[0])) continue;
+    if(cols.length < 3 || !cols[0]) continue;
+    const ref = cols[0].toUpperCase();
+    const st2 = cols[2].toUpperCase();
+    map.set(ref, (map.get(ref)||[]).concat([{ state: st2, county: canonCounty(st2, cols[1]) }]));
+    rows++;
+  }
+  return { map, rows };
+}
+
+/* ---------- Needed-counties text file (CQ USA-CA record format) ---------- */
+function parseNeededFile(text){
+  const lines = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").split("\n");
+  const states = {};
+  let cur = null, buf = [];
+  const flush = () => {
+    if(cur && buf.length){
+      states[cur] = buf.join(" ").split(",").map(s => s.trim()).filter(Boolean);
+    }
+    buf = [];
+  };
+  for(let i = 0; i < lines.length; i++){
+    const s = lines[i].trim();
+    if(!s) continue;
+    const m = s.match(/^([A-Za-z .]+):\s*$/);
+    if(m){
+      const nm = m.group ? m.group(1) : m[1];
+      if(STATE_ABBR[nm.trim().toUpperCase()]){ flush(); cur = nm.trim(); continue; }
+    }
+    if(i === 0 && /needed counties/i.test(s)) continue;
+    if(cur) buf.push(s);
+  }
+  flush();
+  return states; // { "Alabama": ["Autauga", ...], ... }
+}
+
+/* Build a Set of county keys + a display index from {StateName: [counties]} */
+function buildNeededIndex(statesObj){
+  const set = new Set();
+  const display = new Map(); // key -> {state, stateName, county}
+  for(const [stateName, counties] of Object.entries(statesObj)){
+    const ab = STATE_ABBR[stateName.toUpperCase()];
+    if(!ab) continue;
+    for(const c of counties){
+      const k = countyKey(ab, c);
+      set.add(k);
+      display.set(k, { state: ab, stateName, county: c });
+    }
+  }
+  return { set, display };
+}
+
+/* ---------- Scan: turn QSOs into county hits ---------- */
+/* opts: {useCnty, useState:false, includeMy, potaMap, wwffMap, sotaMap} */
+function scanQsos(recs, opts){
+  const hits = [];          // {key,state,county,via,ref,call,date,band,mode,group,multi,legacy}
+  const unmatchedRefs = []; // {via, ref, call, date}
+  const legacyRefs = [];    // {ref, modern, call, date, band, mode}
+  const mismatchRefs = [];  // {ref, call, date, logState, logCnty, lookupPlaces}
+  for(let recIdx = 0; recIdx < recs.length; recIdx++){
+    const rec = recs[recIdx];
+    // The state the log itself claims for the worked station
+    let logState = String(rec.STATE||"").trim().toUpperCase();
+    let logCnty = "";
+    if(rec.CNTY){
+      if(rec.CNTY.includes(",")){
+        const p = rec.CNTY.split(",");
+        logState = p[0].trim().toUpperCase() || logState;
+        logCnty = p.slice(1).join(",").trim();
+      } else logCnty = rec.CNTY.trim();
+    }
+    const call = rec.CALL || "";
+    const date = rec.QSO_DATE || "";
+    const band = String(rec.BAND||"").toLowerCase();
+    const mode = String(rec.MODE||"").toUpperCase();
+    const group = modeGroup(rec.MODE, rec.SUBMODE);
+    const sat = String(rec.PROP_MODE||"").toUpperCase().trim() === "SAT"
+      || !!String(rec.SAT_NAME||"").trim() || !!String(rec.SAT_MODE||"").trim();
+    const base = { call, date, band, mode, group, recIdx, sat };
+    const addHit = (state, county, via, ref, multi, origCounty) => {
+      hits.push({ key: countyKey(state, county), state, county, via, ref, multi: !!multi,
+        origCounty: origCounty || "", ...base });
+    };
+
+    const refs = extractRefs(rec, opts.includeMy);
+    const commentRefSet = new Set();
+    if(opts.scanCommentRefs){
+      const ctext = [rec.COMMENT, rec.NOTES].filter(Boolean).join(" ");
+      if(ctext){
+        const cr = findCommentRefs(ctext);
+        for(const r of cr.pota) if(!refs.pota.includes(r)){ refs.pota.push(r); commentRefSet.add(r); }
+        for(const r of cr.wwff) if(!refs.wwff.includes(r)){ refs.wwff.push(r); commentRefSet.add(r); }
+        for(const r of cr.sota) if(!refs.sota.includes(r)){ refs.sota.push(r); commentRefSet.add(r); }
+      }
+    }
+
+    for(const raw of refs.pota){
+      const { id: rawId, loc } = splitPotaRef(raw);
+      const mod = modernizePotaId(rawId);
+      if(mod.legacy){
+        legacyRefs.push({ ref: raw + (commentRefSet.has(raw) ? " (in comment)" : ""),
+          modern: mod.id + (loc ? "@" + loc : ""), call, date, band, mode });
+      }
+      let entries = opts.potaMap ? opts.potaMap.get(mod.id) : null;
+      if(entries && loc && /^US-[A-Z]{2}$/.test(loc)){
+        const st = loc.slice(3);
+        const filtered = entries.filter(e => e.state === st);
+        if(filtered.length) entries = filtered;
+      }
+      if(entries && entries.length){
+        const multi = entries.length > 1;
+        let conflict = false;
+        if(logState && ABBR_STATE[logState] && !entries.some(e => e.state === logState)){
+          conflict = true;
+          mismatchRefs.push({ ref: raw, call, date, logState, logCnty,
+            lookupPlaces: entries.map(e => e.state + " / " + e.county).join("; ") });
+        }
+        for(const e of entries) hits.push({ key: countyKey(e.state, e.county), state: e.state, county: e.county,
+          via: "POTA", ref: raw, multi, legacy: mod.legacy, conflict, fromComment: commentRefSet.has(raw), ...base });
+      } else if(opts.potaMap){
+        unmatchedRefs.push({ via: "POTA", ref: raw + (mod.legacy ? " (tried " + mod.id + ")" : ""), id: mod.id, call, date,
+          fromComment: commentRefSet.has(raw),
+          hasCounty: !!(logCnty || logState) , logPlace: logState + (logCnty ? " / " + logCnty : "") });
+      }
+    }
+    for(const ref of refs.wwff){
+      const entries = opts.wwffMap ? opts.wwffMap.get(ref) : null;
+      if(entries && entries.length){
+        const multi = entries.length > 1;
+        for(const e of entries) hits.push({ key: countyKey(e.state, e.county), state: e.state, county: e.county,
+          via: "WWFF", ref, multi, fromComment: commentRefSet.has(ref), ...base });
+      } else if(opts.wwffMap){
+        unmatchedRefs.push({ via: "WWFF", ref, call, date, fromComment: commentRefSet.has(ref) });
+      }
+    }
+    for(const ref of refs.sota){
+      const entries = opts.sotaMap ? opts.sotaMap.get(ref) : null;
+      if(entries && entries.length){
+        for(const e of entries) hits.push({ key: countyKey(e.state, e.county), state: e.state, county: e.county,
+          via: "SOTA", ref, multi: false, fromComment: commentRefSet.has(ref), ...base });
+      } else if(opts.sotaMap){
+        unmatchedRefs.push({ via: "SOTA", ref, call, date, fromComment: commentRefSet.has(ref) });
+      }
+    }
+
+    if(opts.useCnty && rec.CNTY){
+      let st = "", cty = rec.CNTY;
+      if(cty.includes(",")){
+        const parts = cty.split(",");
+        st = parts[0].trim().toUpperCase();
+        cty = parts.slice(1).join(",").trim();
+      } else {
+        st = String(rec.STATE||"").trim().toUpperCase();
+      }
+      if(st && ABBR_STATE[st] && cty){
+        const canon = canonCounty(st, cty);
+        addHit(st, canon, "CNTY", "", false, canon !== cty ? cty : "");
+      }
+    }
+  }
+  return { hits, unmatchedRefs, legacyRefs, mismatchRefs };
+}
+
+/* ---------- Aggregate under filters ---------- */
+/* filters: {group: "ALL"|"SSB"|"CW"|"DIGITAL", band: "ALL"|"2m"|..., allowMulti:true, sources:{POTA,WWFF,SOTA,CNTY}} */
+function aggregate(hits, needed, filters, award){
+  award = award || { type: "PLAIN" };
+  const worked = new Map();
+  const unrecognized = new Map();
+  const passing = [];
+  for(const h of hits){
+    if(award.satOnly ? !h.sat : h.sat) continue; // satellite QSOs count only for the Satellite award
+    if(filters.dateFrom || filters.dateTo){
+      if(!h.date) continue; // undated QSOs can't be verified against a date range
+      if(filters.dateFrom && h.date < filters.dateFrom) continue;
+      if(filters.dateTo && h.date > filters.dateTo) continue;
+    }
+    if(filters.group !== "ALL" && h.group !== filters.group) continue;
+    if(filters.band !== "ALL" && h.band !== filters.band) continue;
+    if(filters.sources && filters.sources[h.via] === false) continue;
+    if(h.multi) continue; // multi-county parks are ambiguous: listed separately, never credited/exported
+    const el = hitEligible(h, award);
+    if(!el.ok) continue;
+    passing.push(el.wildcard ? { ...h, wildcard: true } : h);
+  }
+  if(award.type === "ALLPREFIX"){
+    const byKey = new Map();
+    for(const h of passing){
+      if(!byKey.has(h.key)) byKey.set(h.key, []);
+      byKey.get(h.key).push(h);
+    }
+    const stillNeeded = [];
+    for(const [k, d] of needed.display){
+      const list = byKey.get(k) || [];
+      const cov = prefixCoverage(list);
+      if(cov.missing.length === 0){
+        worked.set(k, { state: d.state, county: d.county, hits: list, prefixes: cov.covered });
+      } else {
+        stillNeeded.push({ ...d, missing: cov.missing, partialHits: list.length });
+      }
+    }
+    for(const [k, arr] of byKey) if(!needed.display.has(k))
+      unrecognized.set(k, { state: arr[0].state, county: arr[0].county, hits: arr });
+    return { worked, unrecognized, stillNeeded };
+  }
+  for(const h of passing){
+    const inMaster = needed.display.has(h.key);
+    const bucket = inMaster ? worked : unrecognized;
+    if(!bucket.has(h.key)){
+      const d = needed.display.get(h.key);
+      bucket.set(h.key, { state: d ? d.state : h.state, county: d ? d.county : h.county, hits: [] });
+    }
+    bucket.get(h.key).hits.push(h);
+  }
+  const stillNeeded = [];
+  for(const [k, d] of needed.display){
+    if(!worked.has(k)) stillNeeded.push(d);
+  }
+  return { worked, unrecognized, stillNeeded };
+}
+
+
+
+/* ---------- POTA "hunter_parks" export ---------- */
+/* Quoted CSV: "DX Entity","Location","HASC","Reference","Park Name","First QSO Date","QSOs" */
+function parseCsvRow(line){
+  const out = [];
+  let cur = "", inQ = false;
+  for(let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if(inQ){
+      if(ch === '"'){
+        if(line[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = false;
+      } else cur += ch;
+    } else {
+      if(ch === '"') inQ = true;
+      else if(ch === ','){ out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+function parseHunterParks(text){
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const parks = [];
+  let header = null;
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const cols = parseCsvRow(line);
+    if(!header){
+      header = cols.map(c => c.toUpperCase());
+      // must look like the POTA export
+      if(!header.some(h => h === "REFERENCE")) header = ["DX ENTITY","LOCATION","HASC","REFERENCE","PARK NAME","FIRST QSO DATE","QSOS"];
+      else continue; // consumed real header line
+    }
+    const get = name => { const i = header.indexOf(name); return i >= 0 && i < cols.length ? cols[i] : ""; };
+    const ref = get("REFERENCE").toUpperCase();
+    if(!/^[A-Z]{1,2}-\d+$/.test(ref)) continue;
+    parks.push({
+      ref,
+      state: (get("HASC").match(/^US-([A-Z]{2})$/i) || [,""])[1].toUpperCase(),
+      name: get("PARK NAME"),
+      firstDate: get("FIRST QSO DATE"),
+      qsos: parseInt(get("QSOS"), 10) || 0
+    });
+  }
+  return parks;
+}
+
+/* Map hunted parks onto county keys via the park lookup.
+   Returns { byKey: Map(countyKey -> [park…]), unmatched: [park…] } */
+function matchHunterParks(parks, potaMap){
+  const byKey = new Map();
+  const unmatched = [];
+  if(!potaMap) return { byKey, unmatched: parks.slice() };
+  for(const p of parks){
+    const mod = modernizePotaId(p.ref);
+    const entries = potaMap.get(mod.id);
+    if(!entries || !entries.length){ unmatched.push(p); continue; }
+    for(const e of entries){
+      const k = countyKey(e.state, e.county);
+      if(!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push({ ...p, multi: entries.length > 1, legacy: mod.legacy });
+    }
+  }
+  return { byKey, unmatched };
+}
+
+
+/* ---------- Callsign classification (prefix & combo awards) ---------- */
+function classifyCall(callRaw){
+  let call = String(callRaw||"").toUpperCase().trim();
+  const parts = call.split("/").filter(Boolean);
+  if(parts.length > 1){
+    const full = parts.find(p => /^[A-Z]{1,2}\d[A-Z]{1,4}$/.test(p)) || parts.sort((a,b) => b.length - a.length)[0];
+    call = full;
+  }
+  const m = call.match(/^([A-Z]{1,2})(\d)([A-Z]{1,3})$/);
+  const first = call[0] || "";
+  const isUS = /^(A[A-L]|K[A-Z]?|N[A-Z]?|W[A-Z]?)\d/.test(call);
+  const hasX = call.includes("X");
+  const combo = m ? (m[1].length + "x" + m[3].length) : null;
+  return { call, first, isUS, hasX, combo };
+}
+
+/* Award rule: {type:"PLAIN"} | {type:"PREFIX",letter} | {type:"ALLPREFIX"} | {type:"COMBO",combo} */
+function hitEligible(hit, award){
+  if(!award || award.type === "PLAIN") return { ok: true };
+  const c = classifyCall(hit.call);
+  if(!c.call) return { ok: false };
+  if(award.type === "PREFIX"){
+    if(award.letter === "A"){
+      if(c.isUS && c.first === "A") return { ok: true };
+      if(!c.isUS || c.hasX) return { ok: true, wildcard: true };
+      return { ok: false };
+    }
+    return { ok: c.first === award.letter };
+  }
+  if(award.type === "COMBO") return { ok: c.isUS && c.combo === award.combo };
+  if(award.type === "ALLPREFIX") return { ok: true }; // any call contributes something; coverage() decides
+  return { ok: true };
+}
+
+/* For the All Prefix Award: which of K/W/N/A does this set of hits cover? */
+function prefixCoverage(list){
+  const counts = { K:0, W:0, N:0, A:0 };
+  const wilds = []; // direct letter of each wildcard-capable call (null = DX / no direct letter)
+  for(const h of list){
+    const c = classifyCall(h.call);
+    if(c.isUS && (c.first === "K" || c.first === "W" || c.first === "N")) counts[c.first]++;
+    else if(c.isUS && c.first === "A") counts.A++;
+    if(!c.isUS || c.hasX) wilds.push(c.isUS && "KWN".includes(c.first) ? c.first : null);
+  }
+  const covered = [], missing = [];
+  for(const L of ["K","W","N"]) (counts[L] > 0 ? covered : missing).push(L);
+  let aOk = counts.A > 0;
+  if(!aOk) aOk = wilds.some(w => w === null || counts[w] >= 2); // don't spend a county's only K/W/N as the A wildcard
+  (aOk ? covered : missing).push("A");
+  return { covered, missing };
+}
+
+/* ---------- Award file name recognition ---------- */
+const COMBO_CATS = ["1x2","2x1","1x3","2x2","2x3"];
+function ordSuffix(nStr){
+  const n = parseInt(nStr, 10), t = n % 10, h = n % 100;
+  if(h >= 11 && h <= 13) return "th";
+  return t === 1 ? "st" : t === 2 ? "nd" : t === 3 ? "rd" : "th";
+}
+function recognizeAwardName(filename){
+  const n = String(filename).toLowerCase().replace(/\.[a-z0-9]+$/, "").replace(/[_]+/g, " ");
+  let m;
+  if((m = n.match(/call\s*combo\s*[- ]*\s*(\d)\s*x\s*(\d)/))){
+    const combo = m[1] + "x" + m[2];
+    if(COMBO_CATS.includes(combo)) return { type:"COMBO", combo, label:"Call Combo " + combo };
+    return { error:'"' + combo + '" is not a valid combo category — expected 1x2, 2x1, 1x3, 2x2 or 2x3.' };
+  }
+  if((m = n.match(/usa\s*-?\s*pa\s*[- ]+([kwna])(?![a-z0-9])/))) {
+    const L = m[1].toUpperCase();
+    return { type:"PREFIX", letter:L, label:L + " Prefix Award" };
+  }
+  if(/usa\s*-?\s*pa(?![a-z0-9])/.test(n)) return { type:"ALLPREFIX", label:"All Prefix Award" };
+  if(/usa\s*-?\s*ca(?![a-z0-9])/.test(n)) return { type:"PLAIN", label:"USA-CA" };
+  if((m = n.match(/(\d+)\s*(?:st|nd|rd|th)\s*time\s*award/)))
+    return { type:"PLAIN", repeat:true, label: m[1] + ordSuffix(m[1]) + " Time Award (repeat)" };
+  if((m = n.match(/(\d+(?:[ .]\d+)?)\s*(centi)?meters?\b/)) && /award/.test(n)){
+    const num = m[1].replace(/\s+/, ".");
+    const band = (m[2] ? num + "cm" : num + "m").toLowerCase();
+    return { type:"PLAIN", band, label: band + " Award" };
+  }
+  if((m = n.match(/\b(\d+)\s*cm\b/)) && /award/.test(n))
+    return { type:"PLAIN", band: m[1] + "cm", label: m[1] + "cm Award" };
+  if((m = n.match(/\b(cw|ssb|phone|digital|mixed|rtty|ft8|mobile|yl)\s*award/))){
+    const w = m[1].toLowerCase();
+    const grp = w === "cw" ? "CW" : (w === "ssb" || w === "phone") ? "SSB"
+      : (w === "digital" || w === "rtty" || w === "ft8") ? "DIGITAL" : null;
+    const r = { type:"PLAIN", label: m[1].toUpperCase() + " Award" };
+    if(grp) r.group = grp;
+    return r;
+  }
+  return { error:"Unrecognized award file name. Expected something like \"USA-CA\", \"USA-PA\", \"USA-PA - N\", \"Call Combo - 1x2\", or a band/mode award (\"... 1.25 Meters Award ...\")." };
+}
+
+/* ---------- Rebuild an ADIF file from parsed records ---------- */
+function buildAdif(recs, idxList, comment){
+  const enc = typeof TextEncoder !== "undefined" ? new TextEncoder() : null;
+  const blen = v => enc ? enc.encode(v).length : String(v).length;
+  let out = (comment || "Generated by County Scanner") + "\r\n<adif_ver:5>3.1.4\r\n<programid:14>County Scanner\r\n<eoh>\r\n";
+  for(const i of idxList){
+    const rec = recs[i];
+    if(!rec) continue;
+    let line = "";
+    for(const [k, v] of Object.entries(rec)){
+      if(v == null || v === "") continue;
+      line += "<" + k + ":" + blen(String(v)) + ">" + v + " ";
+    }
+    out += line + "<eor>\r\n";
+  }
+  return out;
+}
+
+
+
+
+/* ---------- Comment-field helpers ---------- */
+/* QRZ-style mailing addresses ("Name - 123 Main St - City, ST 12345") are skipped for
+   county-name matching (city + surname collisions), but still scanned for refs. */
+function looksLikeAddress(text){
+  const t = String(text||"");
+  if(/\b\d{5}(?:-\d{4})?\b/.test(t) && /,\s*[A-Z]{2}\b/.test(t)) return true;      // ", ST 12345"
+  if(/\bP\.?O\.?\s*Box\b/i.test(t)) return true;
+  if(/\b\d+\s+[A-Za-z0-9 .#]{0,32}\b(St|Rd|Dr|Ave|Blvd|Ln|Ct|Trl|Loop|Way|Road|Street|Drive|Lane|Court|Avenue|Pkwy|Hwy|Cir)\b/i.test(t)) return true;
+  if((t.match(/\s-\s/g)||[]).length >= 2 && /,/.test(t)) return true;                 // "x - y - City,"
+  return false;
+}
+/* Is this station actually located in the US? Home US call operating /VE3, /EI etc. is NOT;
+   a DX call operating W9/ or /W4 IS. Maritime/aeronautical mobile has no county. */
+const PORTABLE_DESIGNATORS = new Set(["P","M","R","B","A","QRP","AG","AE"]);
+function isUSLocated(callRaw){
+  const call = String(callRaw||"").toUpperCase().trim();
+  if(!call) return false;
+  const segs = call.split("/").filter(Boolean);
+  if(segs.some(x => x === "MM" || x === "AM")) return false;
+  const full = segs.find(p => /^[A-Z]{1,2}\d[A-Z]{1,4}$/.test(p)) || segs.slice().sort((a,b) => b.length - a.length)[0];
+  const usPrefix = p => /^(A[A-L]|K[A-Z]{0,2}|N[A-Z]?|W[A-Z]?)\d?$/.test(p);
+  let sawLocPrefix = false, usLoc = false;
+  for(const seg of segs){
+    if(seg === full) continue;
+    if(/^\d$/.test(seg)) continue;                    // US area digit, e.g. W1AW/7
+    if(PORTABLE_DESIGNATORS.has(seg)) continue;       // /P /M /R etc.
+    sawLocPrefix = true;                              // a location prefix, e.g. VE3, W9, EI, KH6
+    if(usPrefix(seg)) usLoc = true;
+  }
+  if(sawLocPrefix) return usLoc;
+  return classifyCall(call).isUS;
+}
+/* POTA/WWFF/SOTA references hiding in comment text, e.g. "... MD 21776 K-2121". */
+function findCommentRefs(text){
+  const t = String(text||"").toUpperCase();
+  const out = { pota:[], wwff:[], sota:[] };
+  for(const m of t.matchAll(/\b(K|US|VE|CA)-(\d{4,5})\b/g)) if(!out.pota.includes(m[0])) out.pota.push(m[0]);
+  for(const m of t.matchAll(/\b([A-Z0-9]{1,4}FF)-(\d{3,4})\b/g)) if(!out.wwff.includes(m[0])) out.wwff.push(m[0]);
+  for(const m of t.matchAll(/\b[A-Z0-9]{1,4}\/[A-Z]{2}-\d{3}\b/g)) if(!out.sota.includes(m[0])) out.sota.push(m[0]);
+  return out;
+}
+
+/* ---------- County names hiding in comment/notes fields ---------- */
+function buildCountyNameIndex(statesObj){
+  const map = new Map(); // normalized name -> [{state, county}]
+  for(const [stateName, counties] of Object.entries(statesObj)){
+    const ab = STATE_ABBR[stateName.toUpperCase()];
+    if(!ab) continue;
+    for(const c of counties){
+      const k = normCounty(c);
+      if(!k) continue;
+      if(!map.has(k)) map.set(k, []);
+      map.get(k).push({ state: ab, county: c });
+    }
+  }
+  return map;
+}
+/* Finds capitalized county names in free text. Longest match wins (a "Lake of the Woods"
+   mention does not also report "Lake"). Returns [{gram, norm, places}] */
+function findCountyMentions(text, index){
+  const words = String(text||"").split(/[^A-Za-z0-9'.\-]+/).filter(Boolean);
+  const matches = []; // {start, len, gram, norm, places}
+  for(let i = 0; i < words.length; i++){
+    for(let len = Math.min(4, words.length - i); len >= 1; len--){
+      const gw = words.slice(i, i + len);
+      const CONN = ["of","the","and","de","la","du"];
+      const capOk = /^[A-Z]/.test(gw[0]) && /^[A-Z]/.test(gw[gw.length - 1])
+        && gw.every(w => /^[A-Z]/.test(w) || CONN.includes(w.toLowerCase()));
+      if(!capOk) continue; // proper-noun heuristic, tolerant of "of/the" connectors
+      // person-name guard: a capitalized word right before the match ("Madison Jones",
+      // "John Stone") suggests a name, not a county — unless it is a county-context word
+      const prev = i > 0 ? words[i - 1] : "";
+      if(prev && /^[A-Z]/.test(prev)
+         && !/^(ALSO|AND|PLUS|COUNTY|CTY|CNTY|IN|NEAR|FROM|LINE|TO|AT|THE|OF|WITH|OP|MOBILE|ROVER|POTA|SOTA|WWFF|QTH)$/i.test(prev)
+         && !index.has(normCounty(prev)))   // "Lassen & Sierra": prev is itself a county -> county-line listing
+        continue;
+      const norm = normCounty(gw.join(" "));
+      if(!norm) continue;
+      const places = index.get(norm);
+      if(places) matches.push({ start: i, len, gram: gw.join(" "), norm, places });
+    }
+  }
+  // drop matches fully contained inside a longer match
+  const kept = matches.filter(m => !matches.some(o =>
+    o !== m && o.len > m.len && m.start >= o.start && m.start + m.len <= o.start + o.len));
+  const seen = new Set(), out = [];
+  for(const m of kept){ if(!seen.has(m.norm)){ seen.add(m.norm); out.push(m); } }
+  return out;
+}
+/* Scan whole log for comment/notes county mentions; skips the county already credited on the QSO. */
+function scanCommentMentions(recs, index){
+  const flags = [];
+  for(let i = 0; i < recs.length; i++){
+    const rec = recs[i];
+    const text = [rec.COMMENT, rec.NOTES].filter(Boolean).join(" | ");
+    if(!text) continue;
+    if(rec.APP_COUNTYSCANNER_SOURCE) continue;   // our own generated duplicates
+    if(!isUSLocated(rec.CALL)) continue;      // DX stations have no US county — ignore unless W#/ or /W# portable
+    if(looksLikeAddress(text)) continue;      // QRZ address imports: city/surname noise
+    let ownNorm = "";
+    if(rec.CNTY){
+      let st = "", cty = rec.CNTY;
+      if(cty.includes(",")){ const p = cty.split(","); st = p[0].trim().toUpperCase(); cty = p.slice(1).join(",").trim(); }
+      else st = String(rec.STATE||"").trim().toUpperCase();
+      ownNorm = normCounty(canonCounty(st, cty));
+    }
+    const qsoState = String(rec.STATE||"").trim().toUpperCase();
+    const stateValid = !!ABBR_STATE[qsoState];
+    const mentions = findCountyMentions(text, index)
+      .filter(m => m.norm !== ownNorm)
+      .map(m => {
+        if(stateValid){
+          const inState = m.places.filter(p => p.state === qsoState);
+          return inState.length ? { gram: m.gram, places: inState, inQsoState: true } : null;
+        }
+        return { gram: m.gram, places: m.places, inQsoState: false };
+      })
+      .filter(Boolean);
+    if(mentions.length){
+      let ownState = "", ownCounty = "";
+      if(rec.CNTY){
+        if(rec.CNTY.includes(",")){
+          const p = rec.CNTY.split(",");
+          ownState = p[0].trim().toUpperCase();
+          ownCounty = p.slice(1).join(",").trim();
+        } else { ownCounty = rec.CNTY.trim(); ownState = String(rec.STATE||"").trim().toUpperCase(); }
+      } else ownState = String(rec.STATE||"").trim().toUpperCase();
+      flags.push({ recIdx: i, call: rec.CALL||"", date: rec.QSO_DATE||"",
+        band: String(rec.BAND||"").toLowerCase(), mode: String(rec.MODE||"").toUpperCase(),
+        ownState, ownCounty, comment: text, mentions });
+    }
+  }
+  return flags;
+}
+
+
+
+
+/* ---------- KFF workbook rows (array-of-arrays from any sheet) ---------- */
+function addParkEntry(map, ref, state, county){
+  if(!map.has(ref)) map.set(ref, []);
+  const list = map.get(ref);
+  const k = state + "|" + normCounty(county);
+  if(!list.some(e => e.state + "|" + normCounty(e.county) === k))
+    list.push({ state, county });
+}
+/* Parses one sheet's rows; finds the header line (WWFF-ID / POTA-ID / LOCATION / COUNTIES),
+   tolerating either ID column order. Returns rows consumed. */
+function parseParkRows(rows, potaMap, wwffMap){
+  let hdr = -1, ci = {};
+  for(let r = 0; r < Math.min(rows.length, 10); r++){
+    const cells = (rows[r]||[]).map(c => String(c||"").trim().toUpperCase());
+    const w = cells.indexOf("WWFF-ID"), p = cells.indexOf("POTA-ID"),
+          l = cells.indexOf("LOCATION"), c = cells.indexOf("COUNTIES");
+    if(l >= 0 && c >= 0 && (w >= 0 || p >= 0)){
+      hdr = r; ci = { w, p, l, c };
+      break;
+    }
+  }
+  if(hdr < 0) return 0;
+  let used = 0;
+  for(let r = hdr + 1; r < rows.length; r++){
+    const row = rows[r] || [];
+    const get = i => i >= 0 ? String(row[i]||"").trim() : "";
+    const loc = get(ci.l).toUpperCase();
+    const m = loc.match(/^US-([A-Z]{2})$/);
+    if(!m) continue;
+    const state = m[1];
+    const counties = get(ci.c).split(/[,;]/).map(x => x.trim()).filter(Boolean);
+    if(!counties.length) continue;
+    const wwff = get(ci.w).toUpperCase();
+    const pota = get(ci.p).toUpperCase();
+    for(const cty of counties){
+      const canon = canonCounty(state, cty);
+      if(/^[A-Z0-9]{1,4}FF-\d+$/.test(wwff)) addParkEntry(wwffMap, wwff, state, canon);
+      if(/^[A-Z]{1,2}-\d+$/.test(pota)) addParkEntry(potaMap, pota, state, canon);
+    }
+    used++;
+  }
+  return used;
+}
+
+/* ---------- POTA "all references" export (no counties; names only) ---------- */
+
+
+
+/* ================= UI state ================= */
+const S = {
+  recs: [],            // parsed QSOs
+  scan: null,          // {hits, unmatchedRefs}
+  potaMap: null, wwffMap: null, sotaMap: null,
+  parkNames: null,          // ref -> park name (from park lookup / KFF workbook)
+  potaNames: null,          // ref -> {name, loc} (POTA all-references list)
+  masterIdx: null,          // full USA-CA index for validation
+  appliedMentions: new Set(), // "recIdx|norm" comment actions already applied
+  clearComments: false,     // strip COMMENT/NOTES on QSOs modified from comment mentions
+  modCount: 0,              // QSO edits/duplicates made in this session
+  neededSrc: "full",        // "full" or an index into S.awards
+  awards: [],               // {fileName, rule:{type,letter?,combo?,label}, states, total}
+  awardErrors: [],          // {fileName, error}
+  fullRule: { type: "PLAIN", label: "USA-CA (any call)" },
+  filters: { group:"ALL", band:"ALL", allowMulti:true, includeMy:false, dateFrom:"", dateTo:"",
+             sources:{POTA:true, WWFF:true, SOTA:true, CNTY:true} },
+  commentFlags: [],
+  tab: "needed",
+  agg: null, needed: null,
+  satQsos: 0,              // satellite QSOs detected in the log
+  workedExcl: new Set(),   // worked-county keys deselected for export
+  potaNames: null,         // POTA all-references: ref -> {name, loc}
+  handledDups: new Set(),  // comment mentions turned into duplicate QSOs
+  hunterParks: null,       // parsed hunter_parks rows
+  hunterMatch: null,       // {byKey, unmatched}
+  searchNeeded: "", searchWorked: "", searchMatches: "",
+  spot: { running:false, timer:null, intervalSec:90, srcPOTA:true, srcSOTA:true, applyFilters:true,
+          notify:false, sound:true, raw:[], lastPoll:null, err:"", alerted:new Set(), polling:false },
+  ha: { includeMulti:true, huntedOnly:false, chunk:500 }
+};
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+
+/* ---------- file reading with encoding detection ---------- */
+function readSmart(file){
+  return file.arrayBuffer().then(buf => {
+    const b = new Uint8Array(buf);
+    let enc = "utf-8";
+    if(b.length > 1 && b[0] === 0xFF && b[1] === 0xFE) enc = "utf-16le";
+    else if(b.length > 1 && b[0] === 0xFE && b[1] === 0xFF) enc = "utf-16be";
+    else {
+      let zeros = 0, n = Math.min(b.length, 2000);
+      for(let i = 0; i < n; i++) if(b[i] === 0) zeros++;
+      if(zeros > n * 0.2) enc = "utf-16le";
+    }
+    return new TextDecoder(enc).decode(buf);
+  });
+}
+
+/* ---------- needed index under current source ---------- */
+function currentNeeded(){
+  if(S.neededSrc !== "full" && S.neededSrc !== "sat" && S.awards[S.neededSrc]) return buildNeededIndex(S.awards[S.neededSrc].states);
+  return buildNeededIndex(USACA);
+}
+/* Award-imposed band/mode override the manual filter controls. */
+function effFilters(){
+  const a = currentAward();
+  const f = { ...S.filters, sources: S.filters.sources };
+  if(a.band) f.band = a.band;
+  if(a.group) f.group = a.group;
+  return f;
+}
+function currentAward(){
+  if(S.neededSrc === "sat") return { type: "PLAIN", satOnly: true, label: "USA-CA Satellite" };
+  if(S.neededSrc !== "full" && S.awards[S.neededSrc]) return S.awards[S.neededSrc].rule;
+  return S.fullRule;
+}
+function awardLabel(){
+  const r = currentAward();
+  return r.label || r.type;
+}
+
+/* ---------- rescan + recompute ---------- */
+let _ctyIdx = null;
+function rescan(){
+  if(!_ctyIdx) _ctyIdx = buildCountyNameIndex(USACA);
+  S.commentFlags = scanCommentMentions(S.recs, _ctyIdx);
+  S.scan = scanQsos(S.recs, {
+    useCnty: true, includeMy: S.filters.includeMy, scanCommentRefs: S.scanCommentRefs !== false,
+    potaMap: S.potaMap, wwffMap: S.wwffMap, sotaMap: S.sotaMap
+  });
+  refreshBands();
+  recompute();
+}
+function recompute(){
+  S.needed = currentNeeded();
+  if(S.scan){
+    S.agg = aggregate(S.scan.hits, S.needed, effFilters(), currentAward());
+  } else {
+    S.agg = null;
+  }
+  S.hunterMatch = S.hunterParks ? matchHunterParks(S.hunterParks, S.potaMap) : null;
+  render();
+}
+
+function refreshBands(){
+  const sel = $("sel-band");
+  const cur = sel.value;
+  const bands = [...new Set(S.recs.map(r => String(r.BAND||"").toLowerCase()).filter(Boolean))];
+  const order = ["2190m","630m","160m","80m","60m","40m","30m","20m","17m","15m","12m","10m","6m","4m","2m","1.25m","70cm","33cm","23cm","13cm"];
+  bands.sort((a,b) => (order.indexOf(a)+1||99) - (order.indexOf(b)+1||99) || a.localeCompare(b));
+  sel.innerHTML = '<option value="ALL">All bands</option>' + bands.map(b => `<option value="${b}">${b}</option>`).join("");
+  sel.value = bands.includes(cur) ? cur : "ALL";
+  S.filters.band = sel.value;
+  syncAwardControls();
+}
+
+/* ================= rendering ================= */
+function render(){
+  const on = v => { return v; };
+  const haveLog = S.recs.length > 0;
+  // LCD
+  setLcd("lcd-qso", haveLog ? fmt(S.recs.length) : "—");
+  const nHits = S.agg ? [...S.agg.worked.values()].reduce((a,w)=>a+w.hits.length,0) : null;
+  setLcd("lcd-hits", S.agg ? fmt(nHits) : "—");
+  setLcd("lcd-worked", S.agg ? fmt(S.agg.worked.size) : "—");
+  setLcd("lcd-needed", S.needed ? fmt(S.agg ? S.agg.stillNeeded.length : S.needed.set.size) : "—");
+
+  $("n-needed").textContent = S.agg ? fmt(S.agg.stillNeeded.length) : (S.needed ? fmt(S.needed.set.size) : "");
+  $("n-worked").textContent = S.agg ? fmt(S.agg.worked.size) : "";
+  $("n-qsos").textContent = nHits != null ? fmt(nHits) : "";
+  const nLegacy = S.scan ? S.scan.legacyRefs.length : 0;
+  const nIssues = S.scan ? S.scan.unmatchedRefs.length + (S.agg ? S.agg.unrecognized.size : 0) + nLegacy + S.commentFlags.length : 0;
+  $("n-issues").textContent = S.scan ? fmt(nIssues) : "";
+  let noteHtml = nLegacy
+    ? `<span class="warn">⚠ ${fmt(nLegacy)} old-style "K-" POTA reference${nLegacy === 1 ? "" : "s"} found — credited, but see the Issues tab to update your log.</span>`
+    : "";
+  if(S.satQsos) noteHtml += `${noteHtml ? "<br>" : ""}<span style="color:var(--blue)">🛰 ${fmt(S.satQsos)} satellite QSO${S.satQsos === 1 ? "" : "s"} detected — excluded from all other awards; tracked separately under "USA-CA Satellite" in panel 03.</span>`;
+  $("legacy-note").innerHTML = noteHtml;
+  $("n-matches").textContent = S.hunterMatch ? fmt(matchedNeeded().length) : "";
+
+  const body = $("tabbody");
+  updateSpotBadge();
+
+  if(S.tab === "needed") body.innerHTML = renderNeeded();
+  else if(S.tab === "worked") body.innerHTML = renderWorked();
+  else if(S.tab === "qsos") body.innerHTML = renderQsos();
+  else if(S.tab === "matches") body.innerHTML = renderMatches();
+  else if(S.tab === "spots") body.innerHTML = renderSpots();
+  else body.innerHTML = renderIssues();
+  wireTabBody();
+}
+function setLcd(id, v){
+  const el = $(id);
+  el.textContent = v;
+  el.classList.toggle("off", v === "—");
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function callLink(call){
+  if(!call) return "";
+  const c = String(call).toUpperCase().trim();
+  return `<a class="call" href="https://www.qrz.com/db/${encodeURIComponent(c)}" target="_blank" rel="noopener" title="Look up ${esc(c)} on QRZ.com">${esc(c)}</a>`;
+}
+const VERIFY_MSG = "Please manually verify any park locations before applying for an award.";
+function potaRefName(map, refRaw){
+  if(!refRaw) return null;
+  let r = String(refRaw).toUpperCase().split(" ")[0];
+  const at = r.indexOf("@"); if(at > 0) r = r.slice(0, at);
+  const mod = modernizePotaId(r).id;
+  if(S.parkNames){
+    const n = S.parkNames.get(r) || S.parkNames.get(mod);
+    if(n) return { name: n, loc: "" };
+  }
+  if(map) return map.get(mod) || map.get(r) || null;
+  return null;
+}
+function refName(refRaw){
+  if(!refRaw) return "";
+  let r = String(refRaw).toUpperCase().split(" ")[0];
+  const at = r.indexOf("@"); if(at > 0) r = r.slice(0, at);
+  const mod = modernizePotaId(r).id;
+  if(S.parkNames && (S.parkNames.get(r) || S.parkNames.get(mod))) return S.parkNames.get(r) || S.parkNames.get(mod);
+  if(S.potaNames){
+    const hit = S.potaNames.get(mod) || S.potaNames.get(r);
+    if(hit) return hit.name;
+  }
+  return "";
+}
+
+function filterDesc(){
+  const f = effFilters();
+  const parts = [awardLabel()];
+  parts.push(f.group === "ALL" ? "all modes" : f.group === "SSB" ? "SSB/Phone" : f.group);
+  parts.push(f.band === "ALL" ? "all bands" : f.band);
+  if(f.dateFrom || f.dateTo) parts.push((f.dateFrom || "…") + "–" + (f.dateTo || "…"));
+  return parts.join(" · ");
+}
+
+function renderNeeded(){
+  if(!S.needed) return "";
+  const workedKeys = S.agg ? S.agg.worked : new Map();
+  const missMap = new Map();
+  if(S.agg) for(const d of S.agg.stillNeeded) if(d.missing) missMap.set(countyKey(d.state, d.county), d.missing);
+  const q = normCounty(S.searchNeeded);
+  // group by state
+  const byState = new Map();
+  for(const [k, d] of S.needed.display){
+    if(!byState.has(d.state)) byState.set(d.state, { name: d.stateName, list: [] });
+    byState.get(d.state).list.push({ key:k, county:d.county, worked: workedKeys.has(k) });
+  }
+  const states = [...byState.entries()].sort((a,b) => a[1].name.localeCompare(b[1].name));
+  let neededTotal = 0;
+  let html = `<div class="toolrow">
+      <input class="search" id="q-needed" placeholder="Filter counties…" value="${esc(S.searchNeeded)}">
+      <span class="grow"></span>
+      <button class="btn" id="x-collapse">Collapse all</button>
+      <button class="btn" id="x-expand">Expand all</button>
+      <button class="btn" id="x-need-txt" ${S.needed?"":"disabled"}>Download .txt</button>
+      <button class="btn" id="x-need-csv" ${S.needed?"":"disabled"}>Download .csv</button>
+    </div>`;
+  let blocks = "";
+  for(const [ab, st] of states){
+    const needed = st.list.filter(c => !c.worked);
+    neededTotal += needed.length;
+    const show = st.list.filter(c => !q || normCounty(c.county).includes(q));
+    if(q && !show.some(c => !c.worked)) continue;
+    const shown = show.filter(c => !c.worked);
+    if(!needed.length) continue;
+    const pct = Math.round(100 * (st.list.length - needed.length) / st.list.length);
+    blocks += `<details class="stateblock" ${q ? "open" : ""}>
+      <summary><span class="ab">${ab}</span><span class="nm">${esc(st.name)}</span>
+        <span class="bar"><i style="width:${pct}%"></i></span>
+        <span class="ct">${fmt(needed.length)} needed / ${fmt(st.list.length)}</span></summary>
+      <div class="cties">${(q ? shown : needed).map(c => {
+        const miss = missMap.get(c.key);
+        return `<span class="cty">${esc(c.county)}${miss && miss.length < 4 ? ` <span style="color:var(--amber)">need ${miss.join(",")}</span>` : ""}</span>`;
+      }).join("")}</div>
+    </details>`;
+  }
+  if(!blocks){
+    html += `<div class="empty"><b>Nothing needed</b>${S.agg ? "Every county on the list has credit under the current filters — " + filterDesc() + "." : ""}</div>`;
+  } else {
+    const aw = currentAward();
+    if(aw.repeat && !S.filters.dateFrom)
+      html += `<div class="disclaimer">⚠ "${esc(awardLabel())}" is a repeat award — set a start date in Filters (panel 04) so only QSOs made since you began this round are counted. Right now all dates are included.</div>`;
+    html += `<div class="note" style="margin:0 0 10px">Showing counties still needed under: <span class="warn">${filterDesc()}</span>. Worked counties are hidden from this tab — see the Worked tab.</div>` + blocks;
+  }
+  return html;
+}
+
+function renderWorked(){
+  if(!S.agg || !S.agg.worked.size)
+    return `<div class="empty"><b>No counties worked yet</b>Load a log (and lookup tables for park/summit credit) — matches under the current filters appear here.</div>`;
+  const q = normCounty(S.searchWorked);
+  const rows = [...S.agg.worked.entries()]
+    .map(([k, w]) => ({ k, ...w }))
+    .filter(w => !q || normCounty(w.county).includes(q) || w.state.includes(q))
+    .sort((a,b) => a.state.localeCompare(b.state) || a.county.localeCompare(b.county));
+  let html = `<div class="toolrow">
+      <input class="search" id="q-worked" placeholder="Filter…" value="${esc(S.searchWorked)}">
+      <span class="grow"></span>
+      <button class="btn" id="x-sel-all">Select all</button>
+      <button class="btn" id="x-sel-none">Select none</button>
+      <button class="btn" id="x-adif">Export credited QSOs (.adi)</button>
+      <button class="btn" id="x-worked-csv">Download .csv</button>
+    </div>
+    <div class="disclaimer">⚠ ${VERIFY_MSG}</div>
+    <div id="export-banner"></div>
+    <div class="tablewrap" id="worked-table"><table><thead><tr><th></th><th>St</th><th>County</th><th>Via</th><th>First credit</th></tr></thead><tbody>`;
+  for(const w of rows){
+    const vias = [...new Set(w.hits.map(h => h.via))];
+    const first = w.hits.slice().sort((a,b) => (a.date||"9").localeCompare(b.date||"9"))[0];
+    const multi = w.hits.some(h => h.multi);
+    const wc = w.hits.some(h => h.wildcard);
+    const cf = w.hits.some(h => h.conflict);
+    html += `<tr><td><input type="checkbox" class="wsel" data-k="${esc(w.k)}" ${S.workedExcl.has(w.k) ? "" : "checked"} style="accent-color:var(--amber)"></td><td>${w.state}</td><td>${esc(w.county)}${multi ? ' <span class="warn" title="Credited via a multi-county park">⚠</span>' : ""}${wc ? ' <span class="warn" title="A-prefix wildcard used (DX or X-call) — a wildcard counts for only one prefix per county">⚑</span>' : ""}${cf ? ' <span class="warn" title="Log state disagrees with the park lookup for this reference — see Issues">≠</span>' : ""}${w.prefixes ? ` <span style="color:var(--faint);font-size:10px">${w.prefixes.join("+")}</span>` : ""}</td>
+      <td>${vias.map(v => `<span class="pill ${v}">${v}</span>`).join(" ")}</td>
+      <td>${callLink(first.call)} · ${esc(first.band)} ${esc(first.mode)}${first.ref ? " · " + esc(first.ref) + (first.fromComment ? " 💬" : "") : ""}${first.legacy ? ' <span class="warn" title="Old K- numbering — see Issues tab">K→US</span>' : ""}${first.date ? " · " + esc(first.date) : ""}</td></tr>`;
+  }
+  html += `</tbody></table></div>
+    <div class="note">${fmt(rows.length)} counties under ${filterDesc()}. Checkboxes choose which counties go into the .adi and .csv exports. ⚠ = multi-county park credit — these are shown for situational awareness but <b>never exported</b>; see the multi-county park list in Issues to pin the county down with the activator.</div>`;
+  return html;
+}
+
+function renderQsos(){
+  if(!S.agg) return `<div class="empty"><b>No credits yet</b>Every QSO that produced county credit will be listed here.</div>`;
+  const all = [];
+  for(const w of S.agg.worked.values()) for(const h of w.hits) all.push(h);
+  all.sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  if(!all.length) return `<div class="empty"><b>No credits under current filters</b>${filterDesc()}</div>`;
+  let html = `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Call</th><th>Band</th><th>Mode</th><th>Via</th><th>Ref</th><th>County</th></tr></thead><tbody>`;
+  for(const h of all){
+    html += `<tr><td>${esc(h.date)}</td><td>${callLink(h.call)}</td><td>${esc(h.band)}</td><td>${esc(h.mode)}</td>
+      <td><span class="pill ${h.via}">${h.via}</span></td><td>${esc(h.ref)}${h.legacy ? ' <span class="warn" title="Old K- numbering — see Issues tab">K→US</span>' : ""}${h.conflict ? ' <span class="warn" title="Log state disagrees with park lookup — see Issues">≠</span>' : ""}${h.fromComment ? ' <span title="Reference found in the COMMENT/NOTES field">💬</span>' : ""}</td>
+      <td>${h.state}, ${esc(h.county)}${h.origCounty ? ` <span style="color:var(--faint)">(${esc(h.origCounty)})</span>` : ""}${h.multi ? ' <span class="warn">⚠</span>' : ""}${h.wildcard ? ' <span class="warn" title="A-prefix wildcard">⚑</span>' : ""}${h.sat ? ' <span class="pill SOTA" title="Satellite QSO">SAT</span>' : ""}</td></tr>`;
+  }
+  html += `</tbody></table></div><div class="note">${fmt(all.length)} county credits under ${filterDesc()}.</div>`;
+  return html;
+}
+
+/* Needed counties (under current filters) that contain a park you've already hunted. */
+function matchedNeeded(){
+  if(!S.hunterMatch || !S.needed) return [];
+  const stillNeeded = S.agg ? S.agg.stillNeeded : [...S.needed.display.values()];
+  const out = [];
+  for(const d of stillNeeded){
+    const k = countyKey(d.state, d.county);
+    const parks = S.hunterMatch.byKey.get(k);
+    if(parks && parks.length) out.push({ ...d, key: k, parks });
+  }
+  return out;
+}
+
+function renderMatches(){
+  if(!S.hunterParks)
+    return `<div class="empty"><b>No hunter_parks file loaded</b>Upload your POTA "Parks Hunted" export (panel 02) to see which needed counties contain parks you've already hunted.</div>`;
+  if(!S.potaMap)
+    return `<div class="empty"><b>Park lookup required</b>Load the park lookup table (panel 02) so hunted park references can be mapped to counties.</div>`;
+  const rows = matchedNeeded();
+  const q = normCounty(S.searchMatches);
+  const shown = q ? rows.filter(r => normCounty(r.county).includes(q) || r.state.includes(q)
+      || r.parks.some(p => p.ref.includes(S.searchMatches.toUpperCase()) || normCounty(p.name).includes(q))) : rows;
+  let html = `<div class="toolrow">
+      <input class="search" id="q-matches" placeholder="Filter county / park / ref…" value="${esc(S.searchMatches)}">
+      <span class="grow"></span>
+      <button class="btn" id="x-matches-csv" ${rows.length ? "" : "disabled"}>Download .csv</button>
+    </div>`;
+  if(!rows.length){
+    html += `<div class="empty"><b>No overlap</b>None of the parks you've hunted sit in a county still needed under ${filterDesc()}.</div>`;
+    html += unmatchedHunterNote();
+    return html;
+  }
+  html += `<div class="note" style="margin:0 0 10px">Counties still needed under <span class="warn">${filterDesc()}</span> where you've already hunted a park — activators show up at these, so they're realistic targets to catch on this band/mode.</div>`;
+  // group by state
+  const byState = new Map();
+  for(const r of shown){
+    if(!byState.has(r.state)) byState.set(r.state, { name: r.stateName, list: [] });
+    byState.get(r.state).list.push(r);
+  }
+  for(const [ab, st] of [...byState.entries()].sort((a,b) => a[1].name.localeCompare(b[1].name))){
+    html += `<details class="stateblock" open>
+      <summary><span class="ab">${ab}</span><span class="nm">${esc(st.name)}</span>
+        <span class="ct">${fmt(st.list.length)} counties</span></summary>
+      <div style="border-top:1px solid var(--line)"><table><tbody>`;
+    for(const r of st.list.sort((a,b) => a.county.localeCompare(b.county))){
+      const parks = r.parks.map(p =>
+        `<div>${esc(p.ref)} — ${esc(p.name)}${p.multi ? ' <span class="warn" title="Park spans several counties">⚠</span>' : ""} <span style="color:var(--faint)">(${fmt(p.qsos)} QSO${p.qsos === 1 ? "" : "s"}, first ${esc(p.firstDate)})</span></div>`).join("");
+      html += `<tr><td style="white-space:nowrap;width:1%"><b>${esc(r.county)}</b></td><td>${parks}</td></tr>`;
+    }
+    html += `</tbody></table></div></details>`;
+  }
+  html += `<div class="note">${fmt(rows.length)} needed counties have at least one previously hunted park.</div>`;
+  html += unmatchedHunterNote();
+  return html;
+}
+function unmatchedHunterNote(){
+  const n = S.hunterMatch ? S.hunterMatch.unmatched.length : 0;
+  if(!n) return "";
+  return `<div class="note">${fmt(n)} hunted park reference${n === 1 ? " isn't" : "s aren't"} in the park lookup table (newer parks, or parks outside the WWFF/POTA cross-reference), so their counties can't be determined.</div>`;
+}
+
+function renderIssues(){
+  if(!S.scan) return `<div class="empty"><b>Nothing to report</b>Unmatched references, legacy K- references, and unrecognized county names will surface here.</div>`;
+  let html = "";
+  const lg = S.scan.legacyRefs;
+  html += `<h3 class="sec">Legacy POTA references — old "K-" numbering (${fmt(lg.length)})</h3>`;
+  if(lg.length){
+    const distinct = [...new Set(lg.map(l => l.ref))].length;
+    html += `<div class="note" style="margin:0 0 8px">POTA renumbered US parks from <b>K-</b> to <b>US-</b> in 2023. These QSOs were still credited here (translated automatically), but you should update the references in your logging program so they upload cleanly to POTA/LoTW and match future tools. ${fmt(distinct)} distinct reference${distinct === 1 ? "" : "s"} to fix:</div>`;
+    html += `<div class="tablewrap" style="max-height:260px"><table><thead><tr><th>Logged as</th><th>Update to</th><th>Call</th><th>Date</th><th>Band</th><th>Mode</th></tr></thead><tbody>`;
+    for(const l of lg.slice(0, 500)){
+      html += `<tr><td class="warn">${esc(l.ref)}</td><td>${esc(l.modern)}</td><td>${callLink(l.call)}</td><td>${esc(l.date)}</td><td>${esc(l.band)}</td><td>${esc(l.mode)}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+    if(lg.length > 500) html += `<div class="note">Showing first 500.</div>`;
+    html += `<div class="toolrow" style="margin-top:8px"><button class="btn" id="x-legacy-csv">Download fix list (.csv)</button></div>`;
+  } else {
+    html += `<div class="note">None — all POTA references use the current US- numbering.</div>`;
+  }
+  const multiHits = new Map(); // ref -> {counties:Set, hits:[]}
+  if(S.scan) for(const h of S.scan.hits) if(h.multi){
+    if(!multiHits.has(h.ref)) multiHits.set(h.ref, { counties: new Set(), hits: [] });
+    const g = multiHits.get(h.ref);
+    g.counties.add(h.state + " / " + h.county);
+    if(!g.hits.some(x => x.recIdx === h.recIdx)) g.hits.push(h);
+  }
+  html += `<h3 class="sec">Multi-county park credits — county needs confirming (${fmt(multiHits.size)})</h3>`;
+  if(multiHits.size){
+    html += `<div class="note" style="margin:0 0 8px">These worked references span more than one county, so the actual county can't be determined from the reference alone. They count on screen (when enabled in Options) but are <b>never included in exports</b>. Contact the activator (QRZ links below) to confirm which county they operated from — or coordinate a sked from a spot you need.</div>`;
+    html += `<div class="toolrow" style="margin-bottom:8px"><button class="btn" id="x-multi-csv">Download .csv</button></div>`;
+    html += `<div class="tablewrap" style="max-height:280px"><table><thead><tr><th>Ref</th><th>Park</th><th>Counties spanned</th><th>QSOs</th></tr></thead><tbody>`;
+    for(const [ref, g] of multiHits){
+      const nm = potaRefName(S.potaNames, ref);
+      html += `<tr><td>${esc(ref)}</td><td>${nm ? esc(nm.name) : '<span style="color:var(--faint)">—</span>'}</td>
+        <td>${[...g.counties].map(esc).join("<br>")}</td>
+        <td>${g.hits.slice(0, 6).map(h => `${callLink(h.call)} ${esc(h.date)} ${esc(h.band)} ${esc(h.mode)}`).join("<br>")}${g.hits.length > 6 ? "<br>…" : ""}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+  } else {
+    html += `<div class="note">None — every credited park reference maps to a single county.</div>`;
+  }
+  const cflags = S.commentFlags;
+  const nMods = S.recs.filter(r => r.APP_COUNTYSCANNER_SOURCE).length;
+  html += `<h3 class="sec">County names found in comments (${fmt(cflags.length)})</h3>`;
+  if(nMods){
+    html += `<div class="toolrow" style="margin-bottom:8px">
+      <span style="color:var(--green);font-size:12px">✓ ${fmt(nMods)} QSO${nMods === 1 ? "" : "s"} added or edited from comment mentions</span>
+      <span class="grow"></span>
+      <button class="btn" id="x-fulladif">Export modified log (.adi)</button>
+      <button class="btn" id="x-changedadif">Export changed QSOs only (.adi)</button>
+    </div>`;
+  }
+  if(cflags.length){
+    html += `<div class="note" style="margin:0 0 8px">These QSOs mention a county name in their COMMENT/NOTES field (e.g. "Also Unicoi" from a county-line or mobile operation) that differs from the county on the QSO record. They are <b>not</b> credited automatically — verify and add the county to the CNTY field if valid. To keep this list clean: mailing-address comments (QRZ imports) are skipped, DX stations are ignored unless operating portable US (W9/ or /W4 style), when the QSO has a STATE only that state's counties are matched, and matching requires capitalized names.</div>`;
+    html += `<div class="toolrow" style="margin-bottom:8px"><button class="btn" id="x-comments-csv">Download .csv</button></div>`;
+    html += `<div class="note" style="margin:0 0 8px">Fix a wrong match by editing the county box (contest abbreviations etc.), pick the state, then "Add duplicate QSO" — a copy of the QSO with that CNTY is added and credited — or "Set county" to overwrite the county on the original QSO. "Export modified log" writes the whole log including added duplicates as ADIF.</div>`;
+    html += `<div class="disclaimer">⚠ A single QSO can be claimed for at most <b>two</b> counties (a county-line contact). Adding more duplicates for one QSO will not be accepted by the award sponsor.</div>`;
+    html += `<label class="chk-row" style="margin:0 0 8px"><input type="checkbox" id="opt-clearcom" ${S.clearComments ? "checked" : ""}><span>Clear the COMMENT/NOTES field on QSOs I change <span class="d">keeps the modified log tidy once the county has been moved into CNTY</span></span></label>`;
+    html += `<div class="tablewrap" style="max-height:280px"><table><thead><tr><th>Date</th><th>Call</th><th>Band</th><th>Mode</th><th>QSO state / county</th><th>Comment</th><th>Possible counties</th></tr></thead><tbody>`;
+    cflags.slice(0, 500).forEach((f, fi) => {
+      const poss = f.mentions.map((m, mi) => {
+        const hkey = f.recIdx + "|" + normCounty(m.gram);
+        if(S.handledDups.has(hkey))
+          return `<b>${esc(m.gram)}</b> <span style="color:var(--green)">✓ applied</span>`;
+        const cand = [...new Set(m.places.map(p => p.state))];
+        const others = Object.values(ABBR_STATE).length ? Object.keys(ABBR_STATE).filter(ab => !cand.includes(ab)).sort() : [];
+        const opts = cand.map(st => `<option value="${st}">${st}</option>`).join("")
+          + (others.length ? `<option disabled>──</option>` + others.map(st => `<option value="${st}">${st}</option>`).join("") : "");
+        return `<div style="margin:2px 0"><b>${esc(m.gram)}</b>${m.inQsoState ? "" : ' <span style="color:var(--faint)">state unconfirmed</span>'}<br>
+          <input class="search dup-cty" data-f="${fi}" data-m="${mi}" value="${esc(m.gram)}" style="min-width:110px;width:130px;padding:3px 6px;font-size:11px">
+          <select class="sel dup-st" data-f="${fi}" data-m="${mi}" style="width:auto;display:inline-block;padding:3px 4px;font-size:11px">${opts}</select>
+          <button class="btn dup-add" data-f="${fi}" data-m="${mi}" data-h="${esc(hkey)}" style="padding:3px 8px;font-size:10px">Add duplicate QSO</button>
+          <button class="btn dup-set" data-f="${fi}" data-m="${mi}" data-h="${esc(hkey)}" style="padding:3px 8px;font-size:10px" title="Overwrite the county on the original QSO (for a wrong or abbreviated county)">Set county</button></div>`;
+      }).join("");
+      const own = S.recs[f.recIdx] || {};
+      let ownState = "", ownCounty = "";
+      if(own.CNTY){
+        if(String(own.CNTY).includes(",")){
+          const p = String(own.CNTY).split(",");
+          ownState = p[0].trim().toUpperCase(); ownCounty = p.slice(1).join(",").trim();
+        } else { ownCounty = String(own.CNTY).trim(); ownState = String(own.STATE||"").trim().toUpperCase(); }
+      } else ownState = String(own.STATE||"").trim().toUpperCase();
+      const ownTxt = ownCounty
+        ? `<b>${esc(ownState || "??")}</b> ${esc(ownCounty)}`
+        : (ownState ? `<b>${esc(ownState)}</b> <span style="color:var(--faint)">no county</span>`
+                    : `<span style="color:var(--faint)">none</span>`);
+      html += `<tr><td>${esc(f.date)}</td><td>${callLink(f.call)}</td><td>${esc(f.band)}</td><td>${esc(f.mode)}</td><td style="white-space:nowrap">${ownTxt}</td><td style="max-width:220px">${esc(f.comment)}</td><td>${poss}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+    if(cflags.length > 500) html += `<div class="note">Showing first 500.</div>`;
+  } else {
+    html += `<div class="note">None — no capitalized county names found in COMMENT/NOTES fields beyond each QSO's own county.</div>`;
+  }
+  const mm = S.scan.mismatchRefs || [];
+  html += `<h3 class="sec">POTA reference / state conflicts — possibly reassigned numbers (${fmt(mm.length)})</h3>`;
+  if(mm.length){
+    html += `<div class="note" style="margin:0 0 8px">The log and the lookup table put these references in different states. POTA occasionally reassigns reference numbers, so verify which is right: if the park moved numbers, update the reference in your log; if the lookup table is stale, refresh it. County credit was granted from the lookup table and flagged <span class="warn">≠</span> in the tables.</div>`;
+    html += `<div class="tablewrap" style="max-height:260px"><table><thead><tr><th>Reference</th><th>Call</th><th>Date</th><th>Log says</th><th>Lookup says</th></tr></thead><tbody>`;
+    for(const x of mm.slice(0, 500))
+      html += `<tr><td class="warn">${esc(x.ref)}</td><td>${callLink(x.call)}</td><td>${esc(x.date)}</td><td>${esc(x.logState)}${x.logCnty ? " / " + esc(x.logCnty) : ""}</td><td>${esc(x.lookupPlaces)}</td></tr>`;
+    html += `</tbody></table></div><div class="toolrow" style="margin-top:8px"><button class="btn" id="x-mismatch-csv">Download .csv</button></div>`;
+  } else {
+    html += `<div class="note">None — every resolved POTA reference agrees with the state in the log (where the log has one).</div>`;
+  }
+  const um = S.scan.unmatchedRefs;
+  html += `<h3 class="sec">References not found in the lookup tables (${fmt(um.length)})</h3>`;
+  if(um.length){
+    html += `<div class="tablewrap" style="max-height:260px"><table><thead><tr><th>Via</th><th>Reference</th><th>Park name / location</th><th>Call</th><th>Date</th></tr></thead><tbody>`;
+    for(const u of um.slice(0, 500)){
+      const nm = u.via === "POTA" ? potaRefName(S.potaNames, u.ref) : null;
+      html += `<tr><td><span class="pill ${u.via}">${u.via}</span></td><td>${esc(u.ref)}${u.fromComment ? ' <span title="Found in COMMENT/NOTES">💬</span>' : ""}${u.hasCounty ? ' <span class="warn" title="This QSO carries county/state data but the reference is unknown — possibly a reassigned POTA number">◆</span>' : ""}</td><td>${nm ? esc(nm.name) + ' <span style="color:var(--faint)">' + esc(nm.loc) + "</span>" : '<span style="color:var(--faint)">—</span>'}</td><td>${callLink(u.call)}</td><td>${esc(u.date)}${u.hasCounty && u.logPlace ? `<div style="color:var(--faint)">log: ${esc(u.logPlace)}</div>` : ""}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+    if(um.length > 500) html += `<div class="note">Showing first 500.</div>`;
+    html += `<div class="toolrow" style="margin-top:8px"><button class="btn" id="x-unmatched-csv">Download .csv</button></div>`;
+    html += `<div class="note">Usually: a lookup table not loaded yet, a reference outside the table's coverage (non-US, new park), or a typo in the log. Load the POTA all-references list (panel 02) to fill in park names here, then research the county yourself. Rows marked <span class="warn">◆</span> carry county/state data in the QSO itself — a strong hint the POTA number was reassigned; check the reference on pota.app and update your log. Their county still counts via the CNTY field when that source is enabled.${S.potaNames ? "" : " Load the optional POTA all-references list (panel 02) to show park names here."}</div>`;
+  } else {
+    html += `<div class="note">None — every reference found in the log resolved to a county.</div>`;
+  }
+  const unrec = S.agg ? S.agg.unrecognized : new Map();
+  html += `<h3 class="sec">Counties not on the master list (${fmt(unrec.size)})</h3>`;
+  if(unrec.size){
+    html += `<div class="tablewrap" style="max-height:260px"><table><thead><tr><th>St</th><th>County</th><th>Example credit</th></tr></thead><tbody>`;
+    for(const [k, w] of unrec){
+      const h = w.hits[0];
+      html += `<tr><td>${w.state}</td><td>${esc(w.county)}</td><td>${callLink(h.call)} · ${h.via}${h.ref ? " " + esc(h.ref) : ""}</td></tr>`;
+    }
+    html += `</tbody></table></div><div class="toolrow" style="margin-top:8px"><button class="btn" id="x-unrec-csv">Download .csv</button></div><div class="note">These matched a lookup table or CNTY field but aren't in the needed-counties list — e.g. Virginia independent cities, DC, or spelling differences worth checking.</div>`;
+  } else {
+    html += `<div class="note">None.</div>`;
+  }
+  return html;
+}
+
+/* ================= exports ================= */
+function download(name, text){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+function stamp(){ return new Date().toISOString().slice(0,10); }
+function exportNeededTxt(){
+  const byState = new Map();
+  const src = S.agg ? S.agg.stillNeeded : [...S.needed.display.values()];
+  for(const d of src){
+    if(!byState.has(d.stateName)) byState.set(d.stateName, []);
+    byState.get(d.stateName).push(d.county);
+  }
+  let out = `Needed Counties (${filterDesc()}) - ${stamp()}\r\n \r\n`;
+  for(const [st, list] of [...byState.entries()].sort((a,b) => a[0].localeCompare(b[0]))){
+    out += st + ":\r\n";
+    let line = "";
+    list.forEach((c, i) => {
+      const piece = c + (i < list.length - 1 ? ", " : "");
+      if((line + piece).length > 90){ out += line.trimEnd() + "\r\n"; line = ""; }
+      line += piece;
+    });
+    if(line.trim()) out += line.trimEnd() + "\r\n";
+    out += " \r\n";
+  }
+  download(`needed_counties_${stamp()}.txt`, out);
+}
+function exportNeededCsv(){
+  const src = S.agg ? S.agg.stillNeeded : [...S.needed.display.values()];
+  const anyMissing = src.some(d => d.missing);
+  let out = "STATE,COUNTY" + (anyMissing ? ",NEEDED_PREFIXES" : "") + "\r\n";
+  for(const d of src.slice().sort((a,b) => a.state.localeCompare(b.state) || a.county.localeCompare(b.county)))
+    out += `${d.state},"${d.county}"` + (anyMissing ? "," + (d.missing ? d.missing.join("+") : "") : "") + "\r\n";
+  download(`needed_counties_${stamp()}.csv`, out);
+}
+function exportAdif(){
+  if(!S.agg || !S.agg.worked.size) return;
+  const idx = new Set();
+  for(const [k, w] of S.agg.worked){
+    if(S.workedExcl.has(k)) continue;
+    for(const h of w.hits) if(h.recIdx != null && !h.multi) idx.add(h.recIdx); // multi-county park credits are never exported
+  }
+  if(!idx.size) return;
+  const banner = $("export-banner");
+  if(banner) banner.innerHTML = `<div class="disclaimer">⚠ ${VERIFY_MSG}</div>`;
+  const list = [...idx].sort((a, b) => a - b);
+  const comment = "County Scanner export - QSOs crediting needed counties - " + filterDesc() + " - " + stamp()
+    + " - NOTE: " + VERIFY_MSG;
+  download(`credited_qsos_${stamp()}.adi`, buildAdif(S.recs, list, comment));
+}
+function applyCommentCounty(fi, county, state, hkey, editInPlace, btn){
+  const f = S.commentFlags[fi];
+  if(!f || !county || !state) return;
+  const orig = S.recs[f.recIdx];
+  if(!orig) return;
+  // validate against the master USA-CA list (accepts AK boroughs, Saint/St, etc.)
+  if(!S.masterIdx) S.masterIdx = buildNeededIndex(USACA);
+  const key = countyKey(state, canonCounty(state, county));
+  const master = S.masterIdx.display.get(key);
+  if(!master){
+    if(btn){ btn.textContent = `Not a ${state} county`; btn.classList.add("warn"); setTimeout(() => { btn.textContent = editInPlace ? "Set county" : "Add duplicate QSO"; btn.classList.remove("warn"); }, 2200); }
+    return;
+  }
+  const cntyVal = master.state + "," + master.county;
+  if(editInPlace){
+    orig.CNTY = cntyVal;
+    orig.STATE = master.state;
+    orig.APP_COUNTYSCANNER_SOURCE = "COMMENT-EDIT";
+    if(S.clearComments){ delete orig.COMMENT; delete orig.NOTES; }
+  } else {
+    const dup = { ...orig };
+    dup.CNTY = cntyVal;
+    dup.STATE = master.state;
+    delete dup.POTA_REF; delete dup.SOTA_REF; delete dup.WWFF_REF; // county comes from the comment, not the refs
+    dup.APP_COUNTYSCANNER_SOURCE = "COMMENT-DUPLICATE";
+    if(S.clearComments){ delete dup.COMMENT; delete dup.NOTES; delete orig.COMMENT; delete orig.NOTES; }
+    S.recs.push(dup);
+  }
+  S.handledDups.add(hkey);
+  rescan();
+}
+function exportFullAdif(){
+  const nDups = S.recs.filter(r => r.APP_COUNTYSCANNER_SOURCE).length;
+  const comment = "County Scanner modified log - " + nDups + " QSO(s) added or edited from comment county mentions - " + stamp()
+    + " - NOTE: " + VERIFY_MSG;
+  download(`modified_log_${stamp()}.adi`, buildAdif(S.recs, S.recs.map((_, i) => i), comment));
+}
+function exportMultiCsv(){
+  let out = "REF,PARK_NAME,STATE,COUNTY,CALL,QSO_DATE,BAND,MODE\r\n";
+  if(S.scan) for(const h of S.scan.hits) if(h.multi){
+    const nm = potaRefName(S.potaNames, h.ref);
+    out += `${h.ref},"${(nm ? nm.name : "").replace(/"/g,'""')}",${h.state},"${h.county}",${h.call},${h.date},${h.band},${h.mode}\r\n`;
+  }
+  download(`multi_county_park_credits_${stamp()}.csv`, out);
+}
+function exportChangedAdif(){
+  const idx = S.recs.map((r, i) => r.APP_COUNTYSCANNER_SOURCE ? i : -1).filter(i => i >= 0);
+  if(!idx.size && !idx.length) return;
+  const comment = "County Scanner - changed QSOs only (" + idx.length + " added or edited from comment county mentions) - "
+    + stamp() + " - NOTE: " + VERIFY_MSG;
+  download(`changed_qsos_${stamp()}.adi`, buildAdif(S.recs, idx, comment));
+}
+function exportCommentsCsv(){
+  let out = "QSO_DATE,CALL,BAND,MODE,COMMENT,MENTIONED_NAME,CANDIDATE_STATES,IN_QSO_STATE\r\n";
+  for(const f of S.commentFlags) for(const m of f.mentions)
+    out += `${f.date},${f.call},${f.band},${f.mode},"${f.comment.replace(/"/g,'""')}","${m.gram}",${m.places.map(p => p.state).join("+")},${m.inQsoState ? "Y" : ""}\r\n`;
+  download(`comment_county_mentions_${stamp()}.csv`, out);
+}
+function exportMismatchCsv(){
+  let out = "REFERENCE,CALL,QSO_DATE,LOG_STATE,LOG_COUNTY,LOOKUP_PLACES\r\n";
+  for(const x of S.scan.mismatchRefs)
+    out += `${x.ref},${x.call},${x.date},${x.logState},"${(x.logCnty||"").replace(/"/g,'""')}","${x.lookupPlaces.replace(/"/g,'""')}"\r\n`;
+  download(`pota_state_conflicts_${stamp()}.csv`, out);
+}
+function exportUnmatchedCsv(){
+  let out = "VIA,REFERENCE,PARK_NAME,PARK_LOCATION,CALL,QSO_DATE,HAS_COUNTY_DATA,LOG_PLACE\r\n";
+  for(const u of S.scan.unmatchedRefs){
+    const nm = u.via === "POTA" ? potaRefName(S.potaNames, u.ref) : null;
+    out += `${u.via},"${u.ref.replace(/"/g,'""')}","${(nm ? nm.name : "").replace(/"/g,'""')}",${nm ? nm.loc : ""},${u.call},${u.date},${u.hasCounty ? "Y" : ""},"${(u.logPlace||"").replace(/"/g,'""')}"\r\n`;
+  }
+  download(`unmatched_refs_${stamp()}.csv`, out);
+}
+function exportUnrecCsv(){
+  if(!S.agg) return;
+  let out = "STATE,COUNTY,EXAMPLE_CALL,EXAMPLE_VIA,EXAMPLE_REF\r\n";
+  for(const [, w] of S.agg.unrecognized){
+    const h = w.hits[0];
+    out += `${w.state},"${w.county}",${h.call},${h.via},${h.ref}\r\n`;
+  }
+  download(`unrecognized_counties_${stamp()}.csv`, out);
+}
+function exportLegacyCsv(){
+  let out = "LOGGED_REF,UPDATE_TO,CALL,QSO_DATE,BAND,MODE\r\n";
+  for(const l of S.scan.legacyRefs)
+    out += `${l.ref},${l.modern},${l.call},${l.date},${l.band},${l.mode}\r\n`;
+  download(`legacy_pota_refs_to_fix_${stamp()}.csv`, out);
+}
+function exportMatchesCsv(){
+  let out = "STATE,COUNTY,PARK_REF,PARK_NAME,QSOS,FIRST_QSO_DATE,MULTI_COUNTY_PARK\r\n";
+  for(const r of matchedNeeded().sort((a,b) => a.state.localeCompare(b.state) || a.county.localeCompare(b.county)))
+    for(const p of r.parks)
+      out += `${r.state},"${r.county}",${p.ref},"${p.name.replace(/"/g,'""')}",${p.qsos},${p.firstDate},${p.multi ? "Y" : ""}\r\n`;
+  download(`needed_county_park_matches_${stamp()}.csv`, out);
+}
+function exportWorkedCsv(){
+  let out = "STATE,COUNTY,VIA,REF,CALL,DATE,BAND,MODE,MULTI_COUNTY_PARK\r\n";
+  const rows = [...S.agg.worked.entries()].filter(([k]) => !S.workedExcl.has(k)).map(([,w]) => w)
+    .sort((a,b) => a.state.localeCompare(b.state) || a.county.localeCompare(b.county));
+  for(const w of rows) for(const h of w.hits){
+    if(h.multi) continue; // only single-county park matches are exportable
+    out += `${w.state},"${w.county}",${h.via},${h.ref},${h.call},${h.date},${h.band},${h.mode},\r\n`;
+  }
+  download(`worked_counties_${stamp()}.csv`, out);
+}
+
+/* ================= wiring ================= */
+$("f-adif").addEventListener("change", async e => {
+  const files = [...e.target.files];
+  if(!files.length) return;
+  let recs = [], names = [];
+  for(const f of files){
+    const txt = await readSmart(f);
+    const r = parseADIF(txt);
+    recs = recs.concat(r);
+    names.push(`${f.name} <b>(${fmt(r.length)} QSOs)</b>`);
+  }
+  S.recs = recs;
+  S.satQsos = recs.filter(r => String(r.PROP_MODE||"").toUpperCase().trim() === "SAT"
+    || String(r.SAT_NAME||"").trim() || String(r.SAT_MODE||"").trim()).length;
+  if(S.satQsos && S.neededSrc !== "sat") { /* keep current selection; just expose the option */ }
+  renderAwardList();
+  $("m-adif").innerHTML = names.join("<br>");
+  $("st-adif").textContent = fmt(recs.length) + " QSOs";
+  $("st-adif").classList.add("ok");
+  rescan();
+});
+function ensureXLSX(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    sc.onload = () => res(window.XLSX);
+    sc.onerror = () => rej(new Error("Could not load the Excel reader (network blocked?)"));
+    document.head.appendChild(sc);
+  });
+}
+$("f-park").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return;
+  if(/\.(xls|xlsx)$/i.test(f.name)){
+    $("m-park").innerHTML = `Parsing ${esc(f.name)} — this can take a minute for the full KFF workbook…`;
+    try {
+      const XLSXlib = await ensureXLSX();
+      const wb = XLSXlib.read(await f.arrayBuffer(), { type: "array" });
+      const sheets = wb.SheetNames.map(n => XLSXlib.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: "" }));
+      const t = parseParkXlsRows(sheets);
+      if(!t.rows){
+        $("m-park").innerHTML = `<span class="warn">No park rows found in ${esc(f.name)} — expected sheets with WWFF-ID / POTA-ID / LOCATION / COUNTIES columns.</span>`;
+        return;
+      }
+      S.potaMap = t.potaMap; S.wwffMap = t.wwffMap; S.parkNames = t.names;
+      const nMulti = [...t.potaMap.values()].filter(v => v.length > 1).length;
+      $("m-park").innerHTML = `${esc(f.name)} — <b>${fmt(t.potaMap.size)}</b> POTA · <b>${fmt(t.wwffMap.size)}</b> WWFF refs · <b>${fmt(nMulti)}</b> multi-county parks`;
+    } catch(err){
+      $("m-park").innerHTML = `<span class="warn">${esc(err.message || String(err))}</span>`;
+      return;
+    }
+  } else {
+    const p = parseParkLookup(await readSmart(f));
+    S.potaMap = p.potaMap; S.wwffMap = p.wwffMap; S.parkNames = p.names || null;
+    $("m-park").innerHTML = `${esc(f.name)} — <b>${fmt(p.potaMap.size)}</b> POTA · <b>${fmt(p.wwffMap.size)}</b> WWFF refs`;
+  }
+  lookupStatus(); rescan();
+});
+$("f-potanames").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return;
+  const names = parsePotaAllRefs(await readSmart(f));
+  if(!names.size){
+    $("m-potanames").innerHTML = `<span class="warn">No references found in ${esc(f.name)} — expected the pota.app country export (reference,name,…,locationDesc).</span>`;
+    return;
+  }
+  S.potaNames = names;
+  $("m-potanames").innerHTML = `${esc(f.name)} — <b>${fmt(names.size)}</b> reference names`;
+  render();
+});
+$("f-sota").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return;
+  const p = parseSotaLookup(await readSmart(f));
+  S.sotaMap = p.map;
+  $("m-sota").innerHTML = `${esc(f.name)} — <b>${fmt(p.map.size)}</b> SOTA refs`;
+  lookupStatus(); rescan();
+});
+$("f-hunt").addEventListener("change", async e => {
+  const f = e.target.files[0]; if(!f) return;
+  const parks = parseHunterParks(await readSmart(f));
+  if(!parks.length){
+    $("m-hunt").innerHTML = `<span class="warn">No park references found in ${esc(f.name)} — expected the pota.app "Parks Hunted" CSV.</span>`;
+    return;
+  }
+  S.hunterParks = parks;
+  $("m-hunt").innerHTML = `${esc(f.name)} — <b>${fmt(parks.length)}</b> hunted parks`;
+  S.tab = "matches";
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x.dataset.t === "matches"));
+  recompute();
+});
+function lookupStatus(){
+  const n = (S.potaMap ? 1 : 0) + (S.sotaMap ? 1 : 0);
+  const el = $("st-lookups");
+  el.textContent = n + " / 2";
+  el.classList.toggle("ok", n === 2);
+}
+$("f-need").addEventListener("change", async e => {
+  const files = [...e.target.files];
+  if(!files.length) return;
+  for(const f of files){
+    const rec = recognizeAwardName(f.name);
+    if(rec.error){
+      S.awardErrors.push({ fileName: f.name, error: rec.error });
+      continue;
+    }
+    const states = parseNeededFile(await readSmart(f));
+    const total = Object.values(states).reduce((a, v) => a + v.length, 0);
+    if(!total){
+      S.awardErrors.push({ fileName: f.name, error: 'No "State:" sections found — the file content is not in the CQ record-book format.' });
+      continue;
+    }
+    S.awards.push({ fileName: f.name, rule: rec, states, total });
+    S.neededSrc = S.awards.length - 1; // newest becomes active
+  }
+  e.target.value = "";
+  renderAwardList();
+  recompute();
+});
+function renderAwardList(){
+  const el = $("award-list");
+  let html = "";
+  if(S.satQsos){
+    html += `<label class="radio-row"><input type="radio" name="needsrc" value="sat" ${S.neededSrc === "sat" ? "checked" : ""}>
+      <span>🛰 USA-CA Satellite <span class="d">counts only satellite QSOs (PROP_MODE=SAT / SAT_NAME) — ${fmt(S.satQsos)} in this log</span></span></label>`;
+  }
+  S.awards.forEach((a, i) => {
+    html += `<div style="display:flex;align-items:flex-start;gap:6px">
+      <label class="radio-row" style="flex:1"><input type="radio" name="needsrc" value="${i}" ${S.neededSrc === i ? "checked" : ""}>
+        <span>${esc(a.rule.label)} <span class="d">${esc(a.fileName)} — ${fmt(a.total)} counties</span></span></label>
+      <button class="btn award-del" data-i="${i}" title="Remove this award file" style="padding:2px 7px;font-size:11px;align-self:center">✕</button>
+    </div>`;
+  });
+  S.awardErrors.forEach((err, i) => {
+    html += `<div class="filemeta" style="display:flex;gap:6px;align-items:flex-start">
+      <span class="warn" style="flex:1">✕ ${esc(err.fileName)}: ${esc(err.error)}</span>
+      <button class="btn awarderr-del" data-i="${i}" title="Dismiss" style="padding:1px 6px;font-size:11px">✕</button></div>`;
+  });
+  el.innerHTML = html;
+  el.querySelectorAll(".award-del").forEach(b => b.addEventListener("click", () => removeAward(+b.dataset.i)));
+  el.querySelectorAll(".awarderr-del").forEach(b => b.addEventListener("click", () => {
+    S.awardErrors.splice(+b.dataset.i, 1); renderAwardList();
+  }));
+  // keep the "full" radio in sync
+  document.querySelector('input[name="needsrc"][value="full"]').checked = (S.neededSrc === "full");
+  updateNeededStatus();
+  syncAwardControls();
+}
+function syncAwardControls(){
+  const a = currentAward();
+  const bandSel = $("sel-band");
+  const lockBand = !!a.band;
+  if(lockBand){
+    if(![...bandSel.options].some(o => o.value === a.band))
+      bandSel.insertAdjacentHTML("beforeend", `<option value="${a.band}">${a.band}</option>`);
+    bandSel.value = a.band;
+  }
+  bandSel.disabled = lockBand;
+  bandSel.title = lockBand ? `Locked to ${a.band} by the selected award` : "";
+  bandSel.style.opacity = lockBand ? .55 : 1;
+  const lockMode = !!a.group;
+  document.querySelectorAll("#seg-mode button").forEach(b => {
+    b.disabled = lockMode;
+    b.style.opacity = lockMode ? .55 : 1;
+    b.classList.toggle("on", lockMode ? b.dataset.v === a.group : b.dataset.v === S.filters.group);
+  });
+  $("seg-mode").title = lockMode ? `Locked to ${a.group} by the selected award` : "";
+  const note = $("award-lock-note");
+  if(note){
+    const bits = [];
+    if(lockBand) bits.push(`<b>${a.band}</b>`);
+    if(lockMode) bits.push(`<b>${a.group === "SSB" ? "SSB/Phone" : a.group}</b>`);
+    note.innerHTML = bits.length
+      ? `<span class="warn">🔒 ${esc(awardLabel())} counts only ${bits.join(" · ")} QSOs — filter locked.</span>` : "";
+  }
+}
+function removeAward(i){
+  if(!S.awards[i]) return;
+  S.awards.splice(i, 1);
+  if(S.neededSrc === i) S.neededSrc = S.awards.length ? 0 : "full";
+  else if(typeof S.neededSrc === "number" && S.neededSrc > i) S.neededSrc--;
+  renderAwardList();
+  recompute();
+}
+function updateNeededStatus(){
+  const el = $("st-needed");
+  if(S.neededSrc === "full") el.textContent = S.fullRule.label.replace(" (any call)", "");
+  else if(S.neededSrc === "sat") el.textContent = "USA-CA Satellite";
+  else el.textContent = S.awards[S.neededSrc].rule.label;
+}
+document.addEventListener("change", e => {
+  if(e.target.name !== "needsrc") return;
+  S.neededSrc = (e.target.value === "full" || e.target.value === "sat") ? e.target.value : parseInt(e.target.value, 10);
+  updateNeededStatus();
+  syncAwardControls();
+  recompute();
+});
+$("sel-fullaward").addEventListener("change", e => {
+  const v = e.target.value;
+  const label = e.target.selectedOptions[0].textContent;
+  if(v === "PLAIN") S.fullRule = { type: "PLAIN", label: "USA-CA (any call)" };
+  else if(v === "ALLPREFIX") S.fullRule = { type: "ALLPREFIX", label: label };
+  else if(v.startsWith("PREFIX:")) S.fullRule = { type: "PREFIX", letter: v.slice(7), label: label };
+  else if(v.startsWith("COMBO:")) S.fullRule = { type: "COMBO", combo: v.slice(6), label: label };
+  if(S.neededSrc === "full"){ updateNeededStatus(); syncAwardControls(); recompute(); }
+});
+
+$("seg-mode").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#seg-mode button").forEach(x => x.classList.toggle("on", x === b));
+  S.filters.group = b.dataset.v;
+  recompute();
+});
+$("sel-band").addEventListener("change", e => { S.filters.band = e.target.value; recompute(); });
+$("date-from").addEventListener("change", e => { S.filters.dateFrom = e.target.value.replace(/-/g, ""); recompute(); });
+$("date-to").addEventListener("change", e => { S.filters.dateTo = e.target.value.replace(/-/g, ""); recompute(); });
+for(const src of ["POTA","WWFF","SOTA","CNTY"])
+  $("src-" + src).addEventListener("change", e => { S.filters.sources[src] = e.target.checked; recompute(); });
+$("opt-multi").addEventListener("change", e => { S.filters.allowMulti = e.target.checked; recompute(); });
+$("opt-my").addEventListener("change", e => { S.filters.includeMy = e.target.checked; rescan(); });
+$("opt-crefs").addEventListener("change", e => { S.scanCommentRefs = e.target.checked; rescan(); });
+
+/* ================= HamAlert integration =================
+   HamAlert (hamalert.org) watches the DX cluster, RBN, SOTAwatch, POTA, WWFF Spotline and
+   PSK Reporter server-side and pushes to your phone — it reaches the sources a web page can't.
+   What it has no concept of is *counties*. This page does: it can turn "counties I still need"
+   into the concrete list of park/summit references that sit in them, which is exactly what a
+   HamAlert trigger's "Park reference" (wwffRef) and "Summit reference" (summitRef) conditions
+   take. POTA (US-xxxx) and WWFF (xFF-xxxx) references share the one Park reference field. */
+
+const HA_CHUNK_DEFAULT = 500;
+
+/* Build the reference lists for counties still needed under the current award + filters. */
+function hamalertRefs(opts){
+  opts = opts || {};
+  const need = spotNeedInfo();
+  const out = { pota: [], wwff: [], sota: [], counties: new Set(), skippedMulti: 0 };
+  if(!need) return out;
+
+  const hunted = opts.huntedOnly && S.hunterParks
+    ? new Set(S.hunterParks.map(p => modernizePotaId(p.ref).id))
+    : null;
+
+  const collect = (map, bucket, isPota) => {
+    if(!map) return;
+    for(const [ref, entries] of map){
+      if(!entries || !entries.length) continue;
+      if(entries.length > 1 && !opts.includeMulti){ 
+        if(entries.some(e => need.keys.has(countyKey(e.state, e.county)))) out.skippedMulti++;
+        continue;
+      }
+      if(hunted && isPota && !hunted.has(ref)) continue;
+      let hit = false;
+      for(const e of entries){
+        const k = countyKey(e.state, e.county);
+        if(!need.keys.has(k)) continue;
+        if(opts.states && opts.states.size && !opts.states.has(e.state)) continue;
+        out.counties.add(k); hit = true;
+      }
+      if(hit) bucket.push(ref);
+    }
+  };
+  collect(S.potaMap, out.pota, true);
+  if(!opts.huntedOnly) collect(S.wwffMap, out.wwff, false);
+  if(!opts.huntedOnly) collect(S.sotaMap, out.sota, false);
+
+  out.pota.sort(); out.wwff.sort(); out.sota.sort();
+  return out;
+}
+
+function chunkList(arr, size){
+  if(!size || arr.length <= size) return [arr];
+  const out = [];
+  for(let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+function haCurrent(){
+  const box = $("ha-multi");
+  return {
+    includeMulti: box ? box.checked : true,
+    huntedOnly: $("ha-hunted") ? $("ha-hunted").checked : false,
+    chunk: $("ha-chunk") ? (parseInt($("ha-chunk").value, 10) || 0) : HA_CHUNK_DEFAULT
+  };
+}
+
+function copyText(text, btn){
+  const done = ok => { if(!btn) return; const old = btn.textContent; btn.textContent = ok ? "✓ copied" : "copy failed"; setTimeout(() => { btn.textContent = old; }, 1400); };
+  if(navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
+  else {
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+      document.body.removeChild(ta); done(true);
+    }catch(e){ done(false); }
+  }
+}
+
+function renderHamAlert(){
+  const o = S.ha;
+  const refs = hamalertRefs(o);
+  const award = currentAward();
+  const total = refs.pota.length + refs.wwff.length + refs.sota.length;
+  const canAny = S.potaMap || S.wwffMap || S.sotaMap;
+
+  let html = `<div class="hablock">
+    <div class="hahead"><b>HamAlert trigger lists</b> <span class="d">— push alerts to your phone, no browser needed</span></div>`;
+
+  if(!canAny){
+    return html + `<div class="note" style="margin:0">Load a park lookup and/or SOTA lookup in <b>Panel 02</b> to generate reference lists.</div></div>`;
+  }
+  if(award.satOnly){
+    return html + `<div class="note" style="margin:0">🛰 Park and summit references don't apply to the satellite award.</div></div>`;
+  }
+
+  html += `<div class="toolrow" style="margin-bottom:8px">
+    <label class="chk-row" style="padding:0"><input type="checkbox" id="ha-multi" ${o.includeMulti?"checked":""}><span>Include multi-county parks</span></label>
+    <label class="chk-row" style="padding:0"><input type="checkbox" id="ha-hunted" ${o.huntedOnly?"checked":""} ${S.hunterParks?"":"disabled"}><span>Only parks I've hunted before${S.hunterParks?"":" <span class='d'>load hunter_parks</span>"}</span></label>
+    <span class="grow"></span>
+    <label class="lbl" style="margin:0 6px 0 0;display:inline">Split every</label>
+    <select class="sel" id="ha-chunk" style="width:auto">
+      ${[250,500,1000,0].map(v => `<option value="${v}" ${o.chunk===v?"selected":""}>${v ? fmt(v)+" refs" : "no split"}</option>`).join("")}
+    </select>
+  </div>`;
+
+  if(!total){
+    html += `<div class="note" style="margin:0">No references in your needed counties${o.huntedOnly ? " among parks you've hunted" : ""} — either the award is complete or the lookups don't cover those counties.</div></div>`;
+    return html;
+  }
+
+  html += `<div class="spotstatus" style="margin-bottom:10px"><b>${fmt(total)}</b> reference${total===1?"":"s"} covering <b>${fmt(refs.counties.size)}</b> of the counties you still need for <b>${esc(award.label || award.type)}</b>${refs.skippedMulti ? ` · ${fmt(refs.skippedMulti)} multi-county park${refs.skippedMulti===1?"":"s"} excluded` : ""}</div>`;
+
+  const group = (label, list, cond) => {
+    if(!list.length) return "";
+    const chunks = chunkList(list, o.chunk);
+    let h = `<div class="hagroup"><div class="hagl">${label} <span class="d">→ HamAlert condition “${cond}”</span> <b>${fmt(list.length)}</b></div><div class="toolrow" style="margin:0">`;
+    chunks.forEach((c, i) => {
+      h += `<button class="btn" data-ha-copy="${cond}:${i}">Copy${chunks.length>1?` part ${i+1}/${chunks.length}`:""} <span class="d">(${fmt(c.length)})</span></button>`;
+    });
+    h += `<button class="btn" data-ha-dl="${cond}">Download .txt</button></div></div>`;
+    return h;
+  };
+  html += group("POTA references", refs.pota, "wwffRef");
+  html += group("WWFF references", refs.wwff, "wwffRef2");
+  html += group("SOTA summits", refs.sota, "summitRef");
+
+  html += `<details class="hahelp"><summary>How to set this up in HamAlert</summary>
+    <ol>
+      <li>Create an account at <a href="https://hamalert.org/" target="_blank" rel="noopener">hamalert.org</a> and install the free HamAlert app.</li>
+      <li>Add a trigger, condition <b>Park reference</b>, and paste a POTA/WWFF list above. Use <b>Summit reference</b> for the SOTA list. If a list was split, make one trigger per part.</li>
+      <li>Optionally add <b>Band</b> / <b>Mode</b> conditions to match the award you're chasing, and set a rate limit so one activator doesn't alert repeatedly.</li>
+      <li>Set the action to <b>App</b> (and/or Telnet, if your logger reads hamalert.org:7300).</li>
+    </ol>
+    <div class="note" style="margin:6px 0 0">HamAlert then does the watching server-side across the DX cluster, RBN, SOTAwatch, POTA, WWFF Spotline and PSK Reporter — sources this page can't reach — and pushes to your phone whether or not this page is open. Regenerate and repaste the lists after you work new counties; the lists are a snapshot of what you needed when you copied them.</div>
+  </details></div>`;
+  return html;
+}
+
+function wireHamAlert(){
+  const rerender = () => { $("tabbody").innerHTML = renderSpots(); wireTabBody(); };
+  const bindChk = (id, key) => { const el = $(id); if(el) el.addEventListener("change", e => { S.ha[key] = e.target.checked; rerender(); }); };
+  bindChk("ha-multi", "includeMulti");
+  bindChk("ha-hunted", "huntedOnly");
+  const ch = $("ha-chunk");
+  if(ch) ch.addEventListener("change", e => { S.ha.chunk = parseInt(e.target.value, 10) || 0; rerender(); });
+
+  const refs = () => hamalertRefs(S.ha);
+  const listFor = cond => { const r = refs(); return cond === "wwffRef" ? r.pota : cond === "wwffRef2" ? r.wwff : r.sota; };
+  document.querySelectorAll("[data-ha-copy]").forEach(b => b.addEventListener("click", () => {
+    const [cond, i] = b.dataset.haCopy.split(":");
+    const chunks = chunkList(listFor(cond), S.ha.chunk);
+    copyText((chunks[parseInt(i,10)] || []).join(","), b);
+  }));
+  document.querySelectorAll("[data-ha-dl]").forEach(b => b.addEventListener("click", () => {
+    const cond = b.dataset.haDl;
+    const list = listFor(cond);
+    const name = cond === "summitRef" ? "sota_summits" : cond === "wwffRef2" ? "wwff_refs" : "pota_refs";
+    const chunks = chunkList(list, S.ha.chunk);
+    const body = chunks.length > 1
+      ? chunks.map((c, i) => `# part ${i+1} of ${chunks.length} (${c.length} refs)\n${c.join(",")}`).join("\n\n")
+      : list.join(",");
+    download(`hamalert_${name}_needed_${stamp()}.txt`, body);
+  }));
+}
+
+/* ================= Spot monitor — live POTA/SOTA spots vs. needed counties =================
+   Polls the public POTA and SOTA spot APIs over HTTPS, resolves each spotted reference to a
+   county through the already-loaded lookup tables, and alerts when a spot lands in a county
+   still needed under the current award + filters. Raw DX-cluster telnet can't be reached from
+   a browser page, so CNTY-style cluster spots aren't covered — see the note in the tab. */
+
+const BAND_EDGES = [ // [lo kHz, hi kHz, band] — ADIF band names as used elsewhere in the app
+  [135.7,137.8,"2190m"],[472,479,"630m"],[1800,2000,"160m"],[3500,4000,"80m"],[5330,5410,"60m"],
+  [7000,7300,"40m"],[10100,10150,"30m"],[14000,14350,"20m"],[18068,18168,"17m"],[21000,21450,"15m"],
+  [24890,24990,"12m"],[28000,29700,"10m"],[50000,54000,"6m"],[70000,70500,"4m"],[144000,148000,"2m"],
+  [222000,225000,"1.25m"],[420000,450000,"70cm"],[902000,928000,"33cm"],[1240000,1300000,"23cm"]
+];
+function freqToBand(kHz){
+  if(!(kHz > 0)) return "";
+  for(const [lo,hi,b] of BAND_EDGES) if(kHz >= lo && kHz <= hi) return b;
+  return "";
+}
+function fmtMHz(kHz){ return kHz > 0 ? (kHz/1000).toFixed(3).replace(/0$/,"") : "?"; }
+function fmtSpotTime(iso){
+  if(!iso) return "";
+  const d = new Date(/Z|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + "Z");
+  return isNaN(d) ? "" : String(d.getUTCHours()).padStart(2,"0") + ":" + String(d.getUTCMinutes()).padStart(2,"0") + "z";
+}
+
+/* Which counties would still help, under the current award + filters?
+   Returns {keys:Set, missing:Map(key -> missing prefix letters)|null, award} */
+function spotNeedInfo(){
+  if(!S.needed) return null;
+  const award = currentAward();
+  if(S.agg){
+    const keys = new Set(); const missing = new Map();
+    for(const d of S.agg.stillNeeded){
+      const k = countyKey(d.state, d.county);
+      keys.add(k);
+      if(d.missing) missing.set(k, d.missing);
+    }
+    return { keys, missing: missing.size ? missing : null, award };
+  }
+  return { keys: new Set(S.needed.set), missing: null, award };
+}
+
+/* Could this activator's callsign contribute under the award rule? */
+function spotCallOk(call, award, missingLetters){
+  if(!award || award.satOnly) return !award || !award.satOnly;
+  if(award.type === "ALLPREFIX"){
+    const c = classifyCall(call);
+    if(!c.call) return false;
+    const need = missingLetters || ["K","W","N","A"];
+    if(c.isUS && need.includes(c.first)) return true;
+    if(need.includes("A") && (!c.isUS || c.hasX)) return true; // possible A wildcard
+    return false;
+  }
+  return hitEligible({ call }, award).ok;
+}
+
+async function pollSpots(){
+  const sp = S.spot;
+  if(sp.polling) return;
+  sp.polling = true; sp.err = "";
+  const jobs = [];
+  if(sp.srcPOTA && S.potaMap) jobs.push(
+    fetch("https://api.pota.app/spot/activator")
+      .then(r => { if(!r.ok) throw new Error("POTA API " + r.status); return r.json(); })
+      .then(list => ({ src:"POTA", list })));
+  if(sp.srcSOTA && S.sotaMap) jobs.push(
+    fetch("https://api2.sota.org.uk/api/spots/60/all")
+      .then(r => { if(!r.ok) throw new Error("SOTA API " + r.status); return r.json(); })
+      .then(list => ({ src:"SOTA", list })));
+  const results = await Promise.allSettled(jobs);
+  const raw = []; const errs = [];
+  for(const res of results){
+    if(res.status === "rejected"){ errs.push(String(res.reason && res.reason.message || res.reason)); continue; }
+    const { src, list } = res.value;
+    if(!Array.isArray(list)) continue;
+    for(const s of list){
+      if(src === "POTA"){
+        const refRaw = String(s.reference || "").toUpperCase().trim();
+        if(!refRaw) continue;
+        let ref = refRaw;
+        let entries = S.potaMap.get(ref);
+        if(!entries){ const m = modernizePotaId(ref); if(m.legacy) { ref = m.id; entries = S.potaMap.get(ref); } }
+        const kHz = parseFloat(s.frequency) || 0;
+        raw.push({ src, call: String(s.activator||"").toUpperCase().trim(), ref,
+          parkName: s.name || "", freq: kHz, band: freqToBand(kHz),
+          mode: String(s.mode||"").toUpperCase().trim(), time: s.spotTime || "",
+          entries: entries || null });
+      } else {
+        const ref = (String(s.associationCode||"").toUpperCase() + "/" + String(s.summitCode||"").toUpperCase()).replace(/^\/$/,"");
+        if(!ref || ref === "/") continue;
+        const kHz = (parseFloat(s.frequency) || 0) * 1000; // SOTA reports MHz
+        raw.push({ src, call: String(s.activatorCallsign||"").toUpperCase().trim(), ref,
+          parkName: s.summitDetails || "", freq: kHz, band: freqToBand(kHz),
+          mode: String(s.mode||"").toUpperCase().trim(), time: s.timeStamp || "",
+          entries: S.sotaMap.get(ref) || null });
+      }
+    }
+  }
+  sp.raw = raw;
+  sp.lastPoll = new Date();
+  if(errs.length) sp.err = errs.join(" · ");
+  sp.polling = false;
+
+  // fire alerts for hits not seen before
+  const hits = spotHits();
+  for(const h of hits){
+    const key = h.call + "|" + h.ref + "|" + (h.band || Math.round(h.freq));
+    if(sp.alerted.has(key)) continue;
+    sp.alerted.add(key);
+    alertSpot(h);
+  }
+  if(sp.alerted.size > 800) sp.alerted = new Set([...sp.alerted].slice(-400));
+
+  updateSpotBadge();
+  if(S.tab === "spots") { $("tabbody").innerHTML = renderSpots(); wireTabBody(); }
+}
+
+/* Derive needed-county hits from the latest raw spots under current award/filters. */
+function spotHits(){
+  const sp = S.spot;
+  const need = spotNeedInfo();
+  if(!need || !sp.raw.length) return [];
+  if(need.award && need.award.satOnly) return []; // park spots can't help the satellite award
+  const f = effFilters();
+  const out = [];
+  for(const s of sp.raw){
+    if(!s.entries || !s.entries.length) continue;
+    const multi = s.entries.length > 1;
+    if(multi && !S.filters.allowMulti) continue;
+    if(sp.applyFilters){
+      if(f.band !== "ALL" && s.band && s.band !== f.band) continue;
+      if(f.group !== "ALL" && s.mode && modeGroup(s.mode, "") !== f.group) continue;
+      if(f.sources && f.sources[s.src] === false) continue;
+    }
+    const counties = [];
+    for(const e of s.entries){
+      const k = countyKey(e.state, e.county);
+      if(!need.keys.has(k)) continue;
+      if(!spotCallOk(s.call, need.award, need.missing ? need.missing.get(k) : null)) continue;
+      counties.push({ ...e, key: k, missing: need.missing ? need.missing.get(k) : null });
+    }
+    if(counties.length) out.push({ ...s, counties, multi });
+  }
+  out.sort((a,b) => String(b.time).localeCompare(String(a.time)));
+  return out;
+}
+
+function updateSpotBadge(){
+  const sp = S.spot;
+  const el = $("n-spots"); const dot = $("spot-tabdot");
+  if(!el) return;
+  const n = sp.raw.length ? spotHits().length : 0;
+  el.textContent = sp.running || sp.raw.length ? fmt(n) : "";
+  el.classList.toggle("hot", n > 0);
+  if(dot) dot.classList.toggle("live", sp.running);
+  document.title = (sp.running && n > 0 ? `(${n}) ` : "") + "County Scanner — ADIF Award Tool";
+}
+
+/* ---------- alerting ---------- */
+let _audioCtx = null;
+function spotBeep(){
+  try{
+    if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx, t = ctx.currentTime;
+    for(const [f0, dt] of [[880, 0], [1320, .17]]){
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f0;
+      g.gain.setValueAtTime(0, t + dt);
+      g.gain.linearRampToValueAtTime(.25, t + dt + .02);
+      g.gain.exponentialRampToValueAtTime(.001, t + dt + .16);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t + dt); o.stop(t + dt + .18);
+    }
+  }catch(e){}
+}
+function alertSpot(h){
+  const sp = S.spot;
+  const where = h.counties.map(c => c.county + ", " + c.state).join(" / ");
+  if(sp.notify && "Notification" in window && Notification.permission === "granted"){
+    try{
+      new Notification("Needed county on the air: " + where, {
+        body: `${h.call} · ${h.ref}${h.parkName ? " " + h.parkName : ""} · ${fmtMHz(h.freq)} MHz ${h.mode || ""}`.trim(),
+        tag: h.call + "|" + h.ref
+      });
+    }catch(e){}
+  }
+  if(sp.sound) spotBeep();
+}
+
+/* ---------- monitor control ---------- */
+function spotStart(){
+  const sp = S.spot;
+  if(sp.running) return;
+  sp.running = true;
+  spotBeepUnlock();
+  pollSpots();
+  sp.timer = setInterval(pollSpots, sp.intervalSec * 1000);
+  updateSpotBadge();
+}
+function spotStop(){
+  const sp = S.spot;
+  sp.running = false;
+  if(sp.timer){ clearInterval(sp.timer); sp.timer = null; }
+  updateSpotBadge();
+}
+function spotBeepUnlock(){ // create/resume the audio context inside a user gesture
+  try{
+    if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(_audioCtx.state === "suspended") _audioCtx.resume();
+  }catch(e){}
+}
+
+/* ---------- rendering ---------- */
+function renderSpots(){
+  const sp = S.spot;
+  const canPOTA = !!S.potaMap, canSOTA = !!S.sotaMap;
+  const award = currentAward();
+
+  let html = renderHamAlert();
+
+  html += `<div class="hahead" style="margin-top:18px"><b>Live monitor</b> <span class="d">— watch POTA/SOTA spots in this page while it's open</span></div>`;
+  html += `<div class="toolrow">
+    <button class="btn" id="x-spot-toggle">${sp.running ? "■ Stop monitoring" : "▶ Start monitoring"}</button>
+    <select class="sel" id="spot-interval" style="width:auto">
+      ${[60,90,120,300].map(v => `<option value="${v}" ${sp.intervalSec===v?"selected":""}>every ${v>=120?(v/60)+" min":v+" s"}</option>`).join("")}
+    </select>
+    <span class="grow"></span>
+    <span class="spotstatus"><span class="spotdot ${sp.running?"live":""}"></span>${
+      sp.running ? "monitoring" : "stopped"}${sp.lastPoll ? ` · last poll <b>${String(sp.lastPoll.getHours()).padStart(2,"0")}:${String(sp.lastPoll.getMinutes()).padStart(2,"0")}</b>` : ""}</span>
+  </div>
+  <div class="toolrow" style="margin-bottom:8px">
+    <label class="chk-row" style="padding:0"><input type="checkbox" id="spot-pota" ${sp.srcPOTA?"checked":""} ${canPOTA?"":"disabled"}><span>POTA spots${canPOTA?"":" <span class='d'>load park lookup first</span>"}</span></label>
+    <label class="chk-row" style="padding:0"><input type="checkbox" id="spot-sota" ${sp.srcSOTA?"checked":""} ${canSOTA?"":"disabled"}><span>SOTA spots${canSOTA?"":" <span class='d'>load SOTA lookup first</span>"}</span></label>
+    <label class="chk-row" style="padding:0"><input type="checkbox" id="spot-filters" ${sp.applyFilters?"checked":""}><span>Apply band / mode / source filters</span></label>
+    <label class="chk-row" style="padding:0"><input type="checkbox" id="spot-notify" ${sp.notify?"checked":""}><span>Desktop notifications</span></label>
+    <label class="chk-row" style="padding:0"><input type="checkbox" id="spot-sound" ${sp.sound?"checked":""}><span>Sound</span></label>
+  </div>`;
+
+  if(!canPOTA && !canSOTA)
+    return html + `<div class="note">Load a park lookup and/or SOTA lookup in <b>Panel 02</b> first — spots are resolved to counties through the same tables as your log.</div>`;
+  if(award.satOnly)
+    return html + `<div class="note">🛰 The USA-CA Satellite award is selected — park and summit spots can't tell you about satellite passes, so the monitor has nothing to match here. Select a terrestrial award in Panel 03.</div>`;
+
+  if(sp.err) html += `<div class="note" style="color:var(--red)">⚠ ${esc(sp.err)} — will retry on the next poll.</div>`;
+
+  const resolved = sp.raw.filter(s => s.entries && s.entries.length).length;
+  const hits = spotHits();
+  if(sp.raw.length)
+    html += `<div class="spotstatus" style="margin-bottom:10px">${fmt(sp.raw.length)} active spot${sp.raw.length===1?"":"s"} · ${fmt(resolved)} resolved to a county · <b>${fmt(hits.length)}</b> in counties you still need${award.label ? ` for <b>${esc(award.label)}</b>` : ""}</div>`;
+  else if(!sp.running)
+    html += `<div class="note">Press <b>Start monitoring</b> to poll the POTA and SOTA spot networks directly (needs an internet connection; keep this page open). Hits raise a notification and a two-tone alert.<br><br>For DX-cluster spots — county-hunter nets, county-line mobiles — and for alerts that reach you away from the desk, use the HamAlert lists above instead: cluster nodes speak raw telnet, which no web page can open, but HamAlert already ingests them server-side.</div>`;
+
+  if(hits.length){
+    html += `<div class="tablewrap"><table><thead><tr><th>Time</th><th>Call</th><th>MHz</th><th>Mode</th><th>Ref</th><th>St</th><th>County</th><th></th></tr></thead><tbody>`;
+    for(const h of hits){
+      const flags = [h.multi ? `<span class="warn" title="Multi-county park — county not confirmed">⚠</span>` : "",
+                     h.counties.some(c => c.missing) ? `<span class="d">need ${h.counties.map(c=>c.missing?c.missing.join(","):"").filter(Boolean).join(" ")}</span>` : ""]
+                    .filter(Boolean).join(" ");
+      html += `<tr class="spothit"><td>${fmtSpotTime(h.time)}</td><td>${callLink(h.call)}</td><td>${fmtMHz(h.freq)}</td><td>${esc(h.mode||"?")}</td>` +
+        `<td title="${esc(h.parkName)}">${esc(h.ref)}</td><td>${esc([...new Set(h.counties.map(c=>c.state))].join("/"))}</td>` +
+        `<td>${esc(h.counties.map(c=>c.county).join(", "))}</td><td>${flags}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+  } else if(sp.raw.length){
+    html += `<div class="note">No active spots in needed counties right now — the monitor keeps checking${sp.running ? "" : " once started"}.</div>`;
+  }
+  return html;
+}
+
+function wireSpotTab(){
+  const sp = S.spot;
+  const bindClick = (id, fn) => { const el = $(id); if(el) el.addEventListener("click", fn); };
+  bindClick("x-spot-toggle", () => { sp.running ? spotStop() : spotStart(); $("tabbody").innerHTML = renderSpots(); wireTabBody(); });
+  const iv = $("spot-interval");
+  if(iv) iv.addEventListener("change", e => {
+    sp.intervalSec = parseInt(e.target.value, 10) || 90;
+    if(sp.running){ clearInterval(sp.timer); sp.timer = setInterval(pollSpots, sp.intervalSec * 1000); }
+  });
+  const chk = (id, fn) => { const el = $(id); if(el) el.addEventListener("change", fn); };
+  chk("spot-pota", e => { sp.srcPOTA = e.target.checked; if(sp.running) pollSpots(); });
+  chk("spot-sota", e => { sp.srcSOTA = e.target.checked; if(sp.running) pollSpots(); });
+  chk("spot-filters", e => { sp.applyFilters = e.target.checked; $("tabbody").innerHTML = renderSpots(); wireTabBody(); updateSpotBadge(); });
+  chk("spot-sound", e => { sp.sound = e.target.checked; if(sp.sound){ spotBeepUnlock(); spotBeep(); } });
+  chk("spot-notify", e => {
+    sp.notify = e.target.checked;
+    if(sp.notify && "Notification" in window && Notification.permission === "default")
+      Notification.requestPermission().then(p => { if(p !== "granted"){ sp.notify = false; const el = $("spot-notify"); if(el) el.checked = false; } });
+    else if(sp.notify && "Notification" in window && Notification.permission === "denied"){
+      sp.notify = false; e.target.checked = false;
+      alert("Notifications are blocked for this page in your browser settings.");
+    }
+  });
+}
+
+$("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  S.tab = b.dataset.t;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  render();
+});
+function wireTabBody(){
+  wireSpotTab();
+  wireHamAlert();
+  const qn = $("q-needed");
+  if(qn) qn.addEventListener("input", e => { S.searchNeeded = e.target.value; render(); refocus("q-needed"); });
+  const qw = $("q-worked");
+  if(qw) qw.addEventListener("input", e => { S.searchWorked = e.target.value; render(); refocus("q-worked"); });
+  const qm = $("q-matches");
+  if(qm) qm.addEventListener("input", e => { S.searchMatches = e.target.value; render(); refocus("q-matches"); });
+  const bind = (id, fn) => { const el = $(id); if(el) el.addEventListener("click", fn); };
+  bind("x-matches-csv", exportMatchesCsv);
+  bind("x-legacy-csv", exportLegacyCsv);
+  bind("x-comments-csv", exportCommentsCsv);
+  bind("x-changedadif", exportChangedAdif);
+  const cc = $("opt-clearcom");
+  if(cc) cc.addEventListener("change", e => { S.clearComments = e.target.checked; });
+  bind("x-fulladif", exportFullAdif);
+  bind("x-multi-csv", exportMultiCsv);
+  const tb = $("tabbody");
+  if(tb && !tb.__dupWired){
+    tb.__dupWired = true;
+    tb.addEventListener("click", e => {
+      const b = e.target.closest(".dup-add,.dup-set"); if(!b) return;
+      const fi = b.dataset.f, mi = b.dataset.m;
+      const cty = tb.querySelector(`.dup-cty[data-f="${fi}"][data-m="${mi}"]`);
+      const st = tb.querySelector(`.dup-st[data-f="${fi}"][data-m="${mi}"]`);
+      applyCommentCounty(parseInt(fi, 10), cty ? cty.value.trim() : "", st ? st.value : "",
+        b.dataset.h, b.classList.contains("dup-set"), b);
+    });
+  }
+  bind("x-mismatch-csv", exportMismatchCsv);
+  bind("x-unmatched-csv", exportUnmatchedCsv);
+  bind("x-unrec-csv", exportUnrecCsv);
+  bind("x-need-txt", exportNeededTxt);
+  bind("x-need-csv", exportNeededCsv);
+  bind("x-worked-csv", exportWorkedCsv);
+  bind("x-adif", exportAdif);
+  const wt = $("worked-table");
+  if(wt) wt.addEventListener("change", e => {
+    if(!e.target.classList.contains("wsel")) return;
+    const k = e.target.dataset.k;
+    if(e.target.checked) S.workedExcl.delete(k); else S.workedExcl.add(k);
+  });
+  bind("x-sel-all", () => { S.workedExcl.clear(); render(); });
+  bind("x-sel-none", () => { if(S.agg) for(const k of S.agg.worked.keys()) S.workedExcl.add(k); render(); });
+  bind("x-collapse", () => document.querySelectorAll(".stateblock").forEach(d => d.open = false));
+  bind("x-expand", () => document.querySelectorAll(".stateblock").forEach(d => d.open = true));
+}
+function refocus(id){
+  const el = $(id);
+  if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
+
+/* When deployed alongside the lookup CSVs, load them automatically. */
+(async function autoload(){
+  const tryFetch = async (name, apply) => {
+    try {
+      const res = await fetch(name);
+      if(!res.ok) return;
+      const buf = await res.arrayBuffer();
+      const b = new Uint8Array(buf);
+      let enc = "utf-8";
+      if(b.length > 1 && ((b[0] === 0xFF && b[1] === 0xFE))) enc = "utf-16le";
+      else { let z = 0, n = Math.min(b.length, 2000); for(let i = 0; i < n; i++) if(b[i] === 0) z++; if(z > n * 0.2) enc = "utf-16le"; }
+      apply(new TextDecoder(enc).decode(buf), name);
+    } catch(err){ /* not deployed with files alongside — fine */ }
+  };
+  await tryFetch("park_lookup.csv", (txt, name) => {
+    const p = parseParkLookup(txt);
+    if(!p.rows) return;
+    S.potaMap = p.potaMap; S.wwffMap = p.wwffMap;
+    $("m-park").innerHTML = `auto-loaded ${name} — <b>${fmt(p.potaMap.size)}</b> POTA · <b>${fmt(p.wwffMap.size)}</b> WWFF refs`;
+  });
+  await tryFetch("sota_lookup.csv", (txt, name) => {
+    const p = parseSotaLookup(txt);
+    if(!p.rows) return;
+    S.sotaMap = p.map;
+    $("m-sota").innerHTML = `auto-loaded ${name} — <b>${fmt(p.map.size)}</b> SOTA refs`;
+  });
+  lookupStatus();
+  if(S.potaMap || S.sotaMap) rescan(); else recompute();
+})();
+</script>
+</body>
+</html>
